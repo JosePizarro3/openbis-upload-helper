@@ -70,38 +70,39 @@ class GUI:
         self.o: Union[None, Openbis] = None
         self.OPENBIS_URL = 'https://main.datastore.bam.de/'
 
-        window_height = 355
-        window_width = 790
         x_startup = 200
         y_startup = 100
         pad_x = 4
         pad_y = 4
-        label_width = 20
-        textbox_width = 100
-        frame_width = 785
+        textbox_minwidth = 50
 
         if master is None:
             master = tk.Tk()
         self.master = master
 
-        self.master.geometry(f'{window_width}x{window_height}+{x_startup}+{y_startup}')
-        self.master.resizable(False, False)
+        self.master.resizable(True, True)
         self.master.title('OpenBIS Upload Helper')
-        self.master.columnconfigure(0, weight=0)
-        self.master.columnconfigure(1, weight=1)
+        self.master.columnconfigure(0, weight=1)
+        self.master.columnconfigure(1, weight=2)
         self.master.columnconfigure(2, weight=1)
 
         # build ui
         # Export Options
         self.export_options_frame = ttk.Labelframe(self.master)
+        self.export_options_frame.configure(
+            labelanchor="nw", relief="sunken", text="Export Options"
+        )
+        self.export_options_frame.grid(padx=pad_x, pady=pad_y, column=0, columnspan=3, row=0, rowspan=1, sticky="ew")
+        self.export_options_frame.columnconfigure(0, weight=0)
+        self.export_options_frame.columnconfigure(1, weight=1)
+        self.export_options_frame.columnconfigure(2, weight=0)
 
         self.filenames_label = ttk.Label(self.export_options_frame)
-        self.filenames_label.configure(
-            anchor="w", text="Files:", width=label_width
-        )
+        self.filenames_label.configure(anchor="w", text="Files:")
         self.filenames_label.grid(padx=pad_x, pady=pad_y, column=0, row=0, sticky='ew')
 
-        self.filenames_textbox = ttk.Entry(self.export_options_frame, width=textbox_width)
+        self.filenames_textbox = ttk.Entry(self.export_options_frame,
+                                           width=textbox_minwidth)
         self.filenames_textbox.insert("end", os.path.expanduser('~'))
         self.filenames_textbox.grid(padx=pad_x, pady=pad_y, column=1, columnspan=1, row=0, sticky='ew')
 
@@ -129,63 +130,58 @@ class GUI:
         )
         self.upload_to_openbis_checkbox.grid(padx=pad_x, pady=pad_y, column=0, columnspan=3, row=3, sticky='ew')
 
-        self.export_options_frame.configure(
-            labelanchor="nw", relief="sunken", text="Export Options", width=frame_width
-        )
-        self.export_options_frame.grid(padx=pad_x, pady=pad_y, column=0, columnspan=3, row=0, rowspan=1, sticky="ew")
-
         # OpenBIS Options
         self.openbis_options_frame = ttk.Labelframe(self.master)
+        self.openbis_options_frame.configure(
+            labelanchor="nw", relief="sunken", text="OpenBIS Options"
+        )
+        self.openbis_options_frame.grid(padx=pad_x, pady=pad_y, column=0, columnspan=3, row=1, rowspan=1, sticky="ew")
+        self.openbis_options_frame.columnconfigure(0, weight=0)
+        self.openbis_options_frame.columnconfigure(1, weight=1)
+        self.openbis_options_frame.columnconfigure(2, weight=0)
 
         self.user_name_label = ttk.Label(self.openbis_options_frame)
-        self.user_name_label.configure(
-            anchor="w", text="User Name (LDAP):", width=label_width
-        )
+        self.user_name_label.configure(anchor="w", text="User Name (LDAP):")
         self.user_name_label.grid(padx=pad_x, pady=pad_y, column=0, row=0, sticky='ew')
 
-        self.user_name_textbox = ttk.Entry(self.openbis_options_frame, width=textbox_width, validatecommand=self.user_name_val, validate='focusout')
+        self.user_name_textbox = ttk.Entry(self.openbis_options_frame, validatecommand=self.user_name_val, validate='focusout')
         self.user_name_textbox.grid(padx=pad_x, pady=pad_y, column=1, row=0, sticky='ew')
 
         self.password_label = ttk.Label(self.openbis_options_frame)
         self.password_label.configure(
-            anchor="w", text="Password (LDAP):", width=label_width
+            anchor="w", text="Password (LDAP):"
         )
         self.password_label.grid(padx=pad_x, pady=pad_y, column=0, row=1, sticky='ew')
 
-        self.password_textbox = ttk.Entry(self.openbis_options_frame, show='*', width=textbox_width)
+        self.password_textbox = ttk.Entry(self.openbis_options_frame, show='*')
         self.password_textbox.grid(padx=pad_x, pady=pad_y, column=1, row=1, sticky='ew')
 
         self.space_name_label = ttk.Label(self.openbis_options_frame)
         self.space_name_label.configure(
-            anchor="w", text="Space Name:", width=label_width
+            anchor="w", text="Space Name:"
         )
         self.space_name_label.grid(padx=pad_x, pady=pad_y, column=0, row=2, sticky='ew')
 
-        self.space_name_combobox = ttk.Combobox(self.openbis_options_frame, width=textbox_width, values=[i for i in self.UsernameToSpaceMapping.values()])
+        self.space_name_combobox = ttk.Combobox(self.openbis_options_frame, values=[i for i in self.UsernameToSpaceMapping.values()])
         self.space_name_combobox.grid(padx=pad_x, pady=pad_y, column=1, row=2, sticky='ew')
 
         self.project_name_label = ttk.Label(self.openbis_options_frame)
         self.project_name_label.configure(
-            anchor="w", text="Project Name:", width=label_width
+            anchor="w", text="Project Name:"
         )
         self.project_name_label.grid(padx=pad_x, pady=pad_y, column=0, row=3, sticky='ew')
 
-        self.project_name_combobox = ttk.Combobox(self.openbis_options_frame, width=textbox_width, values=[i for i in self.UsernameToProjectsMapping.values() if isinstance(i, str)] + [j for i in self.UsernameToProjectsMapping.values() for j in i if not isinstance(i, str)])
+        self.project_name_combobox = ttk.Combobox(self.openbis_options_frame, values=[i for i in self.UsernameToProjectsMapping.values() if isinstance(i, str)] + [j for i in self.UsernameToProjectsMapping.values() for j in i if not isinstance(i, str)])
         self.project_name_combobox.grid(padx=pad_x, pady=pad_y, column=1, row=3, sticky='ew')
 
         self.experiment_name_label = ttk.Label(self.openbis_options_frame)
         self.experiment_name_label.configure(
-            anchor="w", text="Experiment Name:", width=label_width
+            anchor="w", text="Experiment Name:"
         )
         self.experiment_name_label.grid(padx=pad_x, pady=pad_y, column=0, row=4, sticky='ew')
 
-        self.experiment_name_textbox = ttk.Entry(self.openbis_options_frame, width=textbox_width)
+        self.experiment_name_textbox = ttk.Entry(self.openbis_options_frame)
         self.experiment_name_textbox.grid(padx=pad_x, pady=pad_y, column=1, row=4, sticky='ew')
-
-        self.openbis_options_frame.configure(
-            labelanchor="nw", relief="sunken", text="OpenBIS Options", width=frame_width
-        )
-        self.openbis_options_frame.grid(padx=pad_x, pady=pad_y, column=0, columnspan=3, row=1, rowspan=1, sticky="ew")
 
         # Export Button
         self.upload_button = ttk.Button(self.master)
@@ -196,19 +192,25 @@ class GUI:
 
         # Status Bar
         self.status_bar = ttk.Label(self.master)
-        self.status_bar.configure(
-            anchor="w", text="Status: Idle", width=label_width
-        )
-        # self.status_bar.grid(padx=pad_x, pady=pad_y, column=1, row=3, sticky='ew')
+        self.status_bar.configure(anchor="w", text="Status: Idle")
+        #self.status_bar.grid(padx=pad_x, pady=pad_y, column=1, row=3, sticky='ew')
 
         # Progress Bar
         self.progress_bar = ttk.Progressbar(self.master)
         self.progress_bar.configure(
-            orient='horizontal', mode='indeterminate', length=str(int(textbox_width)//2)
+            orient='horizontal', mode='indeterminate'
         )
-        # self.progress_bar.grid(padx=pad_x, pady=pad_y, column=2, row=3, sticky='ew')
+        #self.progress_bar.grid(padx=pad_x, pady=pad_y, column=2, row=3, sticky='ew')
 
         self.toggle_openbis_options_enable()
+
+        # Let Tkinter calculate window size based on widgets
+        self.master.update_idletasks()
+        # Get current window size
+        width = self.master.winfo_width()
+        height = self.master.winfo_height()
+        # Set window position (x=300, y=200) with current size
+        self.master.geometry(f"{width}x{height}+{x_startup}+{y_startup}")
 
     def run(self) -> None:
         """Run the mainloop"""
