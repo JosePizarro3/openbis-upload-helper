@@ -193,14 +193,14 @@ class GUI:
         # Status Bar
         self.status_bar = ttk.Label(self.master)
         self.status_bar.configure(anchor="w", text="Status: Idle")
-        self.status_bar.grid(padx=pad_x, pady=pad_y, column=1, row=3, sticky='ew')
+        #self.status_bar.grid(padx=pad_x, pady=pad_y, column=1, row=3, sticky='ew')
 
         # Progress Bar
         self.progress_bar = ttk.Progressbar(self.master)
         self.progress_bar.configure(
             orient='horizontal', mode='indeterminate'
         )
-        self.progress_bar.grid(padx=pad_x, pady=pad_y, column=2, row=3, sticky='ew')
+        #self.progress_bar.grid(padx=pad_x, pady=pad_y, column=2, row=3, sticky='ew')
 
         self.toggle_openbis_options_enable()
 
