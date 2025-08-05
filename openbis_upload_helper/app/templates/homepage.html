@@ -27,24 +27,62 @@
                                     <h5 class="text-center">Data Parser</h5>
                                     <form method="POST" enctype="multipart/form-data">
                                         {% csrf_token %}
+
                                         <div class="mb-3">
-                                            <input class="form-control" type="files" id="formFile" name="files" accept=".xls, .xlsx" required>
+                                            <label for="projectName" class="form-label">Project-Name</label>
+                                            <input type="text" class="form-control" id="projectName" name="project_name" placeholder="Project Name" required>
                                         </div>
-                                        {% if file %}
-                                        <div class="mt-2">
-                                            Selected file: <strong>{{ file }}</strong>
+
+                                        <div class="mb-3">
+                                            <label for="collectionName" class="form-label">Collection-Name</label>
+                                            <input type="text" class="form-control" id="collectionName" name="collection_name" placeholder="Collection Name" required>
                                         </div>
-                                        {% endif %}
-                                        <div class="d-flex justify-content-between">
-                                            <button type="submit" name="upload" class="btn btn-primary">Check Masterdata</button>
-                                            <a href="{% url 'homepage' %}" class="btn btn-secondary text-center"><i class="bi bi-arrow-clockwise"></i></a>
+
+                                        <div class="mb-3">
+                                            <label for="formFile" class="form-label">Upload Files</label>
+                                            <input class="form-control" type="file" id="formFile" name="files" multiple required>
+                                            <small class="text-muted">Choose files to upload</small>
                                         </div>
+
+                                        <button type="submit" name="upload" class="btn btn-primary">Select Parsers</button>
+                                        <a href="{% url 'homepage' %}?reset=1" class="btn btn-secondary text-center"><i class="bi bi-arrow-clockwise"></i></a>
                                     </form>
                                 </div>
                             </div>
                         </div>
                     </div>
                 </div>
+
+                {% if uploaded_files %}
+                <div class="card">
+                  <div class="card-body">
+                    <h5 class="text-center">Select Parser</h5>
+                    <h6>Available Parsers:</h6>
+                    <ul style="list-style: none; padding: 0; margin: 3; display: flex; gap: 10px;">
+                        {% for parser in parser_choices %}
+                            <li>{{ parser }}</li>
+                        {% endfor %}
+                    </ul>
+                    <form method="POST">
+                        {% csrf_token %}
+                        {% for file in uploaded_files %}
+                        <div class="mb-3">
+                            <label class="form-label"><strong>{{ file }}</strong></label>
+                            <span class="badge bg-secondary">Example later dynamic</span>
+                            <select class="form-select" name="parser_type_{{ forloop.counter0 }}" required
+                              title="{{ parser_choices|join:', ' }}">
+                                <option value="">-- Select Parser --</option>
+                                {% for parser in parser_choices %}
+                                    <option value="{{ parser }}">{{ parser }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        {% endfor %}
+                    <button type="submit" name="assign_parsers" class="btn btn-success">Upload Files</button>
+                    </form>
+                  </div>
+                </div>
+                {% endif %}
                 {% if logs %}
                 <div class="col-md-8">
                     <div class="card shadow-sm">
