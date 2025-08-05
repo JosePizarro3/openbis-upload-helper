@@ -88,6 +88,8 @@ def homepage(request):
                 saved_file_names.append((uploaded_file.name, tmp_path))
 
             # Save for card 2
+            request.session["project_name"] = project_name
+            request.session["collection_name"] = collection_name
             request.session["uploaded_files"] = saved_file_names
             request.session["parsers_assigned"] = False
             request.session.pop("checker_logs", None)
@@ -125,8 +127,8 @@ def homepage(request):
             run_parser(
                 openbis=o,
                 files_parser=files_parser,
-                project_name="",
-                collection_name="",
+                project_name=request.session.get("project_name", ""),
+                collection_name=request.session.get("collection_name", ""),
             )
 
             # save Logs
