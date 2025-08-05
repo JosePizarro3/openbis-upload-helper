@@ -122,8 +122,12 @@ def homepage(request):
                 parsed_files.setdefault(parser_name, []).append(file_name)
 
             # run run_parser for the files
-            print("RUN PARSER:", files_parser)
-            # run_parser(openbis=o, files_parser=files_parser, project_name=None, collection_name=None)
+            run_parser(
+                openbis=o,
+                files_parser=files_parser,
+                project_name="",
+                collection_name="",
+            )
 
             # save Logs
             context_logs = logging(request, parsed_files, context)
