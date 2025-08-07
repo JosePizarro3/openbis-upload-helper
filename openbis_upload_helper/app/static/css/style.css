@@ -86,6 +86,7 @@ body {
 .card {
     border-radius: 10px;
     border: none;
+    width: 66%;
     padding: 20px;
     background-color: #ffffff; /* White card background for a clean look */
     box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1); /* Softer shadow to give a floating effect */
@@ -223,13 +224,14 @@ button[aria-expanded="true"] .transition-arrow {
 
 .card-number {
       position: absolute;
-      top: 0px;
-      left: 0;
+      top: -8px;
+      left: -8px;
       width: 40px;
       height: 40px;
-      background: #007bff;
+      background-color: var(--bam-blau-dark); /* Primary button color */
+      border-color: var(--bam-blau-darkest);
       color: white;
-      border-radius: 0.5rem; /* Rounded corners */
+      border-radius: 50%; /* Rounded corners */
       display: flex;
       align-items: center;
       justify-content: center;
