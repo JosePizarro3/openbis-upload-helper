@@ -70,7 +70,7 @@ def homepage(request):
     if request.method == "POST" and "upload" in request.POST:
         project_name = request.POST.get("project_name")
         collection_name = request.POST.get("collection_name")
-        uploaded_files = request.FILES.getlist("files")
+        uploaded_files = request.FILES.getlist("files[]")
 
         if not uploaded_files:
             context["error"] = "No files uploaded."
@@ -88,6 +88,8 @@ def homepage(request):
                 saved_file_names.append((uploaded_file.name, tmp_path))
 
             # Save for card 2
+            request.session["project_name"] = project_name
+            request.session["collection_name"] = collection_name
             request.session["uploaded_files"] = saved_file_names
             request.session["parsers_assigned"] = False
             request.session.pop("checker_logs", None)
@@ -122,9 +124,24 @@ def homepage(request):
                 parsed_files.setdefault(parser_name, []).append(file_name)
 
             # run run_parser for the files
-            print("RUN PARSER:", files_parser)
-            # run_parser(openbis=o, files_parser=files_parser, project_name=None, collection_name=None)
+            print(
+                files_parser,
+                request.session.get("project_name", ""),
+                request.session.get("collection_name", ""),
+            )
+            """
+            run_parser(
 
+                openbis=o,
+
+                files_parser=files_parser,
+
+                project_name=request.session.get("project_name", ""),
+
+                collection_name=request.session.get("collection_name", ""),
+
+            )
+            """
             # save Logs
             context_logs = logging(request, parsed_files, context)
 
