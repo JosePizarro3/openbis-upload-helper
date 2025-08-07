@@ -220,3 +220,70 @@ button svg.bi-chevron-right {
 button[aria-expanded="true"] .transition-arrow {
   transform: rotate(90deg);
 }
+
+.card-number {
+      position: absolute;
+      top: 0px;
+      left: 0;
+      width: 40px;
+      height: 40px;
+      background: #007bff;
+      color: white;
+      border-radius: 0.5rem; /* Rounded corners */
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: bold;
+      font-size: 14px;
+      z-index: 2;
+    }
+
+.vertical-wrapper {
+    position: relative;
+    height: 25px; /* oder was du brauchst */
+    display: flex;
+    justify-content: center;
+  }
+
+hr.vertical {
+    position: absolute;
+    height: calc(100% + 20px);; /* Länge der vertikalen Linie */
+    top: -20px;
+    width: 0;
+    bottom: 20px;
+    border: none;
+    border-left: 2px solid black; /* statt border: 1px solid */
+    margin: 0;
+  }
+
+#drop-area {
+    border: 2px dashed #ccc;
+    border-radius: 10px;
+    width: 300px;
+    height: 100px;
+    font-family: sans-serif;
+    text-align: center;
+    padding: 20px;
+    margin: 50px auto;
+    color: #999;
+}
+
+#drop-area.highlight {
+    border-color: purple;
+    background-color: #f3eaff;
+}
+ul#file-list {
+    width: 300px;
+    margin: 0;
+    padding: 0;
+    font-family: sans-serif;
+    list-style: none;
+}
+
+ul#file-list li {
+    padding: 5px 10px;
+    border-bottom: 1px solid #ddd;
+}
+ul#file-list li:last-child {
+    border-bottom: none;
+}
