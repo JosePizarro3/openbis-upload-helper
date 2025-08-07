@@ -220,3 +220,39 @@ button svg.bi-chevron-right {
 button[aria-expanded="true"] .transition-arrow {
   transform: rotate(90deg);
 }
+
+.card-number {
+      position: absolute;
+      top: 0px;
+      left: 0;
+      width: 40px;
+      height: 40px;
+      background: #007bff;
+      color: white;
+      border-radius: 0.5rem; /* Rounded corners */
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: bold;
+      font-size: 14px;
+      z-index: 2;
+    }
+
+.vertical-wrapper {
+    position: relative;
+    height: 25px; /* oder was du brauchst */
+    display: flex;
+    justify-content: center;
+  }
+
+hr.vertical {
+    position: absolute;
+    height: calc(100% + 20px);; /* Länge der vertikalen Linie */
+    top: -20px;
+    width: 0;
+    bottom: 20px;
+    border: none;
+    border-left: 2px solid black; /* statt border: 1px solid */
+    margin: 0;
+  }
+
