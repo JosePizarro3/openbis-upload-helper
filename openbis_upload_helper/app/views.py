@@ -4,8 +4,6 @@ import tempfile
 import uuid
 
 from app.utils import encrypt_password, get_openbis_from_cache
-
-# from bam_masterdata import get_all_parsers
 from bam_masterdata.cli.cli import run_parser
 from bam_masterdata.logger import log_storage, logger
 from django.conf import settings
@@ -14,6 +12,8 @@ from django.core.cache import cache
 from django.shortcuts import redirect, render
 from django.views.decorators.http import require_POST
 from pybis import Openbis
+
+from openbis_upload_helper.uploader.entry_points import get_entry_point_parser
 
 
 def login(request):
@@ -53,12 +53,11 @@ def homepage(request):
         logger.info("User not logged in, redirecting to login page.")
         return redirect("login")
     context = {}
-    available_parsers = {
-        "MyParser1": "",
-        "MyParser2": "",
-    }  # change this to get_all_parsers()
+    available_parsers = get_entry_point_parser()
     parser_choices = list(available_parsers.keys())
     request.session["parser_choices"] = parser_choices
+    context["project_name"] = request.session.get("project_name", "")
+    context["collection_name"] = request.session.get("collection_name", "")
 
     # Reset session if requested with button
     if request.method == "GET" and "reset" in request.GET:
@@ -88,6 +87,8 @@ def homepage(request):
                 saved_file_names.append((uploaded_file.name, tmp_path))
 
             # Save for card 2
+            context["project_name"] = project_name
+            context["collection_name"] = collection_name
             request.session["project_name"] = project_name
             request.session["collection_name"] = collection_name
             request.session["uploaded_files"] = saved_file_names
@@ -156,10 +157,10 @@ def homepage(request):
             return render(request, "homepage.html", context)
 
     # GET request
-    if request.session.get("parsers_assigned"):
-        uploaded_files = []
-    else:
-        uploaded_files = request.session.get("uploaded_files", [])
+    context["project_name"] = request.session.get("project_name", "")
+    context["collection_name"] = request.session.get("collection_name", "")
+    context["parser_assigned"] = request.session.get("parsers_assigned", False)
+    uploaded_files = request.session.get("uploaded_files", [])
     context["uploaded_files"] = (
         [name for name, _ in uploaded_files] if uploaded_files else None
     )
