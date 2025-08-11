@@ -1,7 +1,9 @@
 import datetime
 import os
+import tarfile
 import tempfile
 import uuid
+import zipfile
 
 from app.utils import encrypt_password, get_openbis_from_cache
 from bam_masterdata.cli.cli import run_parser
@@ -13,7 +15,7 @@ from django.shortcuts import redirect, render
 from django.views.decorators.http import require_POST
 from pybis import Openbis
 
-from openbis_upload_helper.uploader.entry_points import get_entry_point_parser
+# from openbis_upload_helper.uploader.entry_points import get_entry_point_parser
 
 
 def login(request):
@@ -53,7 +55,7 @@ def homepage(request):
         logger.info("User not logged in, redirecting to login page.")
         return redirect("login")
     context = {}
-    available_parsers = get_entry_point_parser()
+    available_parsers = {"MyParser1": "", "MyParser2": ""}  # get_entry_point_parser()
     parser_choices = list(available_parsers.keys())
     request.session["parser_choices"] = parser_choices
     context["project_name"] = request.session.get("project_name", "")
@@ -71,22 +73,91 @@ def homepage(request):
         collection_name = request.POST.get("collection_name")
         uploaded_files = request.FILES.getlist("files[]")
 
+        selected_files_raw = request.POST.get("selected_files", "[]")
+        import json
+
+        try:
+            selected_file_names = (
+                json.loads(selected_files_raw) if selected_files_raw else []
+            )
+        except json.JSONDecodeError:
+            selected_file_names = []
+
         if not uploaded_files:
             context["error"] = "No files uploaded."
             return render(request, "homepage.html", context)
-
         try:
             saved_file_names = []
             for uploaded_file in uploaded_files:
-                suffix = os.path.splitext(uploaded_file.name)[1]
                 # save the uploaded file to a temporary location
-                with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
-                    for chunk in uploaded_file.chunks():
-                        tmp.write(chunk)
-                    tmp_path = tmp.name
-                saved_file_names.append((uploaded_file.name, tmp_path))
+                if uploaded_file.name.endswith(".zip"):
+                    # save zip for unzip
+                    with tempfile.NamedTemporaryFile(
+                        delete=False, suffix=".zip"
+                    ) as tmp_zip:
+                        for chunk in uploaded_file.chunks():
+                            tmp_zip.write(chunk)
+                        tmp_zip_path = tmp_zip.name
+                    with zipfile.ZipFile(tmp_zip_path, "r") as zip_ref:
+                        for zip_info in zip_ref.infolist():
+                            if not zip_info.is_dir():
+                                # temp files for each file in the zip
+                                suffix = os.path.splitext(zip_info.filename)[1]
+                                with tempfile.NamedTemporaryFile(
+                                    delete=False, suffix=suffix
+                                ) as tmp_file:
+                                    tmp_file.write(zip_ref.read(zip_info.filename))
+                                    saved_file_names.append(
+                                        (zip_info.filename, tmp_file.name)
+                                    )
+                    os.remove(tmp_zip_path)
+                elif (
+                    uploaded_file.name.endswith(".tar")
+                    or uploaded_file.name.endswith(".tar.gz")
+                    or uploaded_file.name.endswith(".tar.z")
+                ):
+                    # Temporäre Datei zum Speichern des Tar-Archivs
+                    suffix = os.path.splitext(uploaded_file.name)[1]
+                    with tempfile.NamedTemporaryFile(
+                        delete=False, suffix=suffix
+                    ) as tmp_tar:
+                        for chunk in uploaded_file.chunks():
+                            tmp_tar.write(chunk)
+                        tmp_tar_path = tmp_tar.name
+
+                    # Tar-Archiv öffnen und Dateien entpacken
+                    with tarfile.open(
+                        tmp_tar_path, "r:*"
+                    ) as tar_ref:  # "r:*" öffnet beliebige komprimierte Tar-Formate
+                        for member in tar_ref.getmembers():
+                            if member.isfile():
+                                # Datei aus dem Archiv lesen
+                                extracted_file = tar_ref.extractfile(member)
+                                if extracted_file:
+                                    suffix = os.path.splitext(member.name)[1]
+                                    with tempfile.NamedTemporaryFile(
+                                        delete=False, suffix=suffix
+                                    ) as tmp_file:
+                                        tmp_file.write(extracted_file.read())
+                                        saved_file_names.append(
+                                            (member.name, tmp_file.name)
+                                        )
+
+                    os.remove(tmp_tar_path)
+                else:
+                    # save regular file
+                    suffix = os.path.splitext(uploaded_file.name)[1]
+                    with tempfile.NamedTemporaryFile(
+                        delete=False, suffix=suffix
+                    ) as tmp:
+                        for chunk in uploaded_file.chunks():
+                            tmp.write(chunk)
+                        tmp_path = tmp.name
+                    saved_file_names.append((uploaded_file.name, tmp_path))
 
             # Save for card 2
+            context["selected_files"] = selected_file_names
+            request.session["selected_files"] = selected_file_names
             context["project_name"] = project_name
             context["collection_name"] = collection_name
             request.session["project_name"] = project_name
