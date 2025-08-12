@@ -15,7 +15,7 @@ from django.shortcuts import redirect, render
 from django.views.decorators.http import require_POST
 from pybis import Openbis
 
-# from openbis_upload_helper.uploader.entry_points import get_entry_point_parser
+from openbis_upload_helper.uploader.entry_points import get_entry_point_parser
 
 
 def login(request):
@@ -55,8 +55,9 @@ def homepage(request):
         logger.info("User not logged in, redirecting to login page.")
         return redirect("login")
     context = {}
-    available_parsers = {"MyParser1": "", "MyParser2": ""}  # get_entry_point_parser()
-    parser_choices = list(available_parsers.keys())
+    available_parsers = get_entry_point_parser()
+    parser_choices = [entrypoint.name for entrypoint in available_parsers.values()]
+    request.session["available_parsers"] = available_parsers
     request.session["parser_choices"] = parser_choices
     context["project_name"] = request.session.get("project_name", "")
     context["collection_name"] = request.session.get("collection_name", "")
@@ -72,16 +73,8 @@ def homepage(request):
         project_name = request.POST.get("project_name")
         collection_name = request.POST.get("collection_name")
         uploaded_files = request.FILES.getlist("files[]")
-
-        selected_files_raw = request.POST.get("selected_files", "[]")
-        import json
-
-        try:
-            selected_file_names = (
-                json.loads(selected_files_raw) if selected_files_raw else []
-            )
-        except json.JSONDecodeError:
-            selected_file_names = []
+        selected_files_str = request.POST.get("selected_files", "")
+        selected_files = selected_files_str.split(",") if selected_files_str else []
 
         if not uploaded_files:
             context["error"] = "No files uploaded."
@@ -107,9 +100,10 @@ def homepage(request):
                                     delete=False, suffix=suffix
                                 ) as tmp_file:
                                     tmp_file.write(zip_ref.read(zip_info.filename))
-                                    saved_file_names.append(
-                                        (zip_info.filename, tmp_file.name)
-                                    )
+                                    if zip_info.filename in selected_files:
+                                        saved_file_names.append(
+                                            (zip_info.filename, tmp_file.name)
+                                        )
                     os.remove(tmp_zip_path)
                 elif (
                     uploaded_file.name.endswith(".tar")
@@ -139,10 +133,10 @@ def homepage(request):
                                         delete=False, suffix=suffix
                                     ) as tmp_file:
                                         tmp_file.write(extracted_file.read())
+                                    if member.name in selected_files:
                                         saved_file_names.append(
                                             (member.name, tmp_file.name)
                                         )
-
                     os.remove(tmp_tar_path)
                 else:
                     # save regular file
@@ -156,8 +150,6 @@ def homepage(request):
                     saved_file_names.append((uploaded_file.name, tmp_path))
 
             # Save for card 2
-            context["selected_files"] = selected_file_names
-            request.session["selected_files"] = selected_file_names
             context["project_name"] = project_name
             context["collection_name"] = collection_name
             request.session["project_name"] = project_name
@@ -183,6 +175,8 @@ def homepage(request):
 
         context["uploaded_files"] = [name for name, _ in uploaded_files]
         context["parser_choices"] = parser_choices
+        available_parsers = request.session.get("available_parsers", {})
+
         try:
             files_parser = {}
             parsed_files = {}
@@ -191,29 +185,23 @@ def homepage(request):
                 parser_name = request.POST.get(f"parser_type_{idx}")
                 if not parser_name:
                     raise ValueError(f"No parser selected for file {file_name}")
-
-                files_parser.setdefault(parser_name, []).append(file_path)
+                if available_parsers[f"{parser_name}"].value.parser_class is None:
+                    raise ValueError(
+                        f"Parser class not found for {parser_name}. Please check the parser configuration."
+                    )
+                files_parser.setdefault(
+                    available_parsers[f"{parser_name}"].value.parser_class, []
+                ).append(file_path)
                 parsed_files.setdefault(parser_name, []).append(file_name)
 
             # run run_parser for the files
-            print(
-                files_parser,
-                request.session.get("project_name", ""),
-                request.session.get("collection_name", ""),
-            )
-            """
             run_parser(
-
                 openbis=o,
-
                 files_parser=files_parser,
-
                 project_name=request.session.get("project_name", ""),
-
                 collection_name=request.session.get("collection_name", ""),
-
             )
-            """
+
             # save Logs
             context_logs = logging(request, parsed_files, context)
 

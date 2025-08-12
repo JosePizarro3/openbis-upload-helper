@@ -261,31 +261,56 @@ hr.vertical {
 #drop-area {
     border: 2px dashed #ccc;
     border-radius: 10px;
-    width: 300px;
-    height: 100px;
     font-family: sans-serif;
     text-align: center;
-    padding: 20px;
-    margin: 50px auto;
+    margin: 10px auto;
+    padding: 10px;
     color: #999;
 }
 
 #drop-area.highlight {
-    border-color: purple;
+    border-color: var(--bam-blau-dark);
     background-color: #f3eaff;
 }
+
+/* 1. Hauptliste */
 ul#file-list {
-    width: 300px;
+    width: 100%;
     margin: 0;
-    padding: 0;
+    padding: 10px;
     font-family: sans-serif;
     list-style: none;
+    margin-bottom: 10px;
+
+    border: 2px solid #ccc;
+    background-clip: padding-box;
+    transition: border-color .15s ease-in-out, box-shadow .15s ease-in-out;
+    border-radius: 0.25rem;
+}
+ul#file-list:empty {
+  border: none;
 }
 
-ul#file-list li {
+ul#file-list > li {
     padding: 5px 10px;
-    border-bottom: 1px solid #ddd;
 }
-ul#file-list li:last-child {
+ul#file-list > li:last-child {
     border-bottom: none;
 }
+
+
+ul#file-list ul {
+    list-style: none;
+    margin: 5px 0 0 15px;
+    padding: 5px;
+    border: 1px solid #999;
+    border-radius: 0.25rem;
+}
+ul#file-list ul li {
+    padding: 3px 8px;
+    border-bottom: 1px solid #eee;
+}
+ul#file-list ul li:last-child {
+    border-bottom: none;
+}
+
