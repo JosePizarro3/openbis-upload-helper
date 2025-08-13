@@ -15,7 +15,7 @@ from django.shortcuts import redirect, render
 from django.views.decorators.http import require_POST
 from pybis import Openbis
 
-from openbis_upload_helper.uploader.entry_points import get_entry_point_parser
+from openbis_upload_helper.uploader.entry_points import get_entry_point_parsers
 
 
 def login(request):
@@ -55,16 +55,26 @@ def homepage(request):
         logger.info("User not logged in, redirecting to login page.")
         return redirect("login")
     context = {}
-    available_parsers = get_entry_point_parser()
-    parser_choices = [entrypoint.name for entrypoint in available_parsers.values()]
-    request.session["available_parsers"] = available_parsers
+    available_parsers = get_entry_point_parsers()
+    parser_choices = [
+        entrypoint.get("name", "Unknown") for entrypoint in available_parsers.values()
+    ]
+    # ! this "available_parsers" is not used in the templates, so it is commented out, but
+    # ! it might cause some issues if you try to access it in the template because of serialization
+    # request.session["available_parsers"] = available_parsers
     request.session["parser_choices"] = parser_choices
     context["project_name"] = request.session.get("project_name", "")
     context["collection_name"] = request.session.get("collection_name", "")
 
     # Reset session if requested with button
     if request.method == "GET" and "reset" in request.GET:
-        for key in ["uploaded_files", "checker_logs"]:
+        for key in [
+            "uploaded_files",
+            "checker_logs",
+            "project_name",
+            "collection_name",
+            "parsers_assigned",
+        ]:
             request.session.pop(key, None)
         return redirect("homepage")
 
@@ -79,6 +89,7 @@ def homepage(request):
         if not uploaded_files:
             context["error"] = "No files uploaded."
             return render(request, "homepage.html", context)
+        # ! sourcery-ai complained that we should use `.flush()` or close the file before using `tmp.name` calls
         try:
             saved_file_names = []
             for uploaded_file in uploaded_files:
@@ -183,15 +194,21 @@ def homepage(request):
 
             for idx, (file_name, file_path) in enumerate(uploaded_files):
                 parser_name = request.POST.get(f"parser_type_{idx}")
-                if not parser_name:
-                    raise ValueError(f"No parser selected for file {file_name}")
-                if available_parsers[f"{parser_name}"].value.parser_class is None:
+                # ! some files might not have a parser assigned, right?
+                # if not parser_name:
+                #     raise ValueError(f"No parser selected for file {file_name}")
+                # ! before it was: `available_parsers[parser_name].value.parser_class`
+                # ! this syntax is not correct, as `available_parsers` is a dict which looks like:
+                # ! {'masterdata_parser_example_entry_point': {'name': 'MasterdataParserExample', 'description': 'An example parser for masterdata.', 'parser_class': <class 'masterdata_parser_example.parser.MasterdataParserExample'>}}
+                print(parser_name)
+                parser_class = available_parsers.get(parser_name, {}).get(
+                    "parser_class"
+                )
+                if not parser_class:
                     raise ValueError(
                         f"Parser class not found for {parser_name}. Please check the parser configuration."
                     )
-                files_parser.setdefault(
-                    available_parsers[f"{parser_name}"].value.parser_class, []
-                ).append(file_path)
+                files_parser.setdefault(parser_class, []).append(file_path)
                 parsed_files.setdefault(parser_name, []).append(file_name)
 
             # run run_parser for the files
@@ -204,10 +221,9 @@ def homepage(request):
 
             # save Logs
             context_logs = logging(request, parsed_files, context)
-
             context["logs"] = context_logs
-            request.session["parsers_assigned"] = True
             request.session["checker_logs"] = context_logs
+            request.session["parsers_assigned"] = True
             return redirect("homepage")
 
         except Exception as e:
@@ -228,7 +244,16 @@ def homepage(request):
     return render(request, "homepage.html", context)
 
 
-def logging(request, parsed_files={}, context={}):
+def logging(parsed_files: dict = {}) -> list[dict]:
+    """
+    Helper function to log parsed files and format logs for the context.
+
+    Args:
+        parsed_files (dict, optional): The files parsed by the parsers. Defaults to {}.
+
+    Returns:
+        list[dict]: The list of formatted logs for the context.
+    """
     log_storage.clear()
     for parser, paths in parsed_files.items():
         for path in paths:
@@ -254,8 +279,6 @@ def logging(request, parsed_files={}, context={}):
                 "level": "danger" if log["level"] == "error" else log["level"],
             }
         )
-    context["logs"] = context_logs
-    request.session["checker_logs"] = context_logs
     return context_logs
 
 
