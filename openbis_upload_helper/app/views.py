@@ -5,9 +5,8 @@ import tempfile
 import uuid
 import zipfile
 
-from app.utils import encrypt_password, get_openbis_from_cache
 from bam_masterdata.cli.cli import run_parser
-from bam_masterdata.logger import log_storage, logger
+from bam_masterdata.logger import logger
 from django.conf import settings
 from django.contrib.auth import logout
 from django.core.cache import cache
@@ -15,7 +14,14 @@ from django.shortcuts import redirect, render
 from django.views.decorators.http import require_POST
 from pybis import Openbis
 
-from openbis_upload_helper.uploader.entry_points import get_entry_point_parsers
+from .utils import (
+    FileLoader,
+    FilesParser,
+    encrypt_password,
+    get_openbis_from_cache,
+    log_results,
+    preload_context_request,
+)
 
 
 def login(request):
@@ -55,26 +61,12 @@ def homepage(request):
         logger.info("User not logged in, redirecting to login page.")
         return redirect("login")
     context = {}
-    available_parsers = get_entry_point_parsers()
-    parser_choices = [
-        entrypoint.get("name", "Unknown") for entrypoint in available_parsers.values()
-    ]
-    # ! this "available_parsers" is not used in the templates, so it is commented out, but
-    # ! it might cause some issues if you try to access it in the template because of serialization
-    # request.session["available_parsers"] = available_parsers
-    request.session["parser_choices"] = parser_choices
-    context["project_name"] = request.session.get("project_name", "")
-    context["collection_name"] = request.session.get("collection_name", "")
+    available_parsers, parser_choices = preload_context_request(request, context)
+    context["available_parsers"] = available_parsers
 
     # Reset session if requested with button
     if request.method == "GET" and "reset" in request.GET:
-        for key in [
-            "uploaded_files",
-            "checker_logs",
-            "project_name",
-            "collection_name",
-            "parsers_assigned",
-        ]:
+        for key in ["uploaded_files", "checker_logs"]:
             request.session.pop(key, None)
         return redirect("homepage")
 
@@ -89,80 +81,11 @@ def homepage(request):
         if not uploaded_files:
             context["error"] = "No files uploaded."
             return render(request, "homepage.html", context)
-        # ! sourcery-ai complained that we should use `.flush()` or close the file before using `tmp.name` calls
         try:
-            saved_file_names = []
-            for uploaded_file in uploaded_files:
-                # save the uploaded file to a temporary location
-                if uploaded_file.name.endswith(".zip"):
-                    # save zip for unzip
-                    with tempfile.NamedTemporaryFile(
-                        delete=False, suffix=".zip"
-                    ) as tmp_zip:
-                        for chunk in uploaded_file.chunks():
-                            tmp_zip.write(chunk)
-                        tmp_zip_path = tmp_zip.name
-                    with zipfile.ZipFile(tmp_zip_path, "r") as zip_ref:
-                        for zip_info in zip_ref.infolist():
-                            if not zip_info.is_dir():
-                                # temp files for each file in the zip
-                                suffix = os.path.splitext(zip_info.filename)[1]
-                                with tempfile.NamedTemporaryFile(
-                                    delete=False, suffix=suffix
-                                ) as tmp_file:
-                                    tmp_file.write(zip_ref.read(zip_info.filename))
-                                    if zip_info.filename in selected_files:
-                                        saved_file_names.append(
-                                            (zip_info.filename, tmp_file.name)
-                                        )
-                    os.remove(tmp_zip_path)
-                elif (
-                    uploaded_file.name.endswith(".tar")
-                    or uploaded_file.name.endswith(".tar.gz")
-                    or uploaded_file.name.endswith(".tar.z")
-                ):
-                    # Temporäre Datei zum Speichern des Tar-Archivs
-                    suffix = os.path.splitext(uploaded_file.name)[1]
-                    with tempfile.NamedTemporaryFile(
-                        delete=False, suffix=suffix
-                    ) as tmp_tar:
-                        for chunk in uploaded_file.chunks():
-                            tmp_tar.write(chunk)
-                        tmp_tar_path = tmp_tar.name
-
-                    # Tar-Archiv öffnen und Dateien entpacken
-                    with tarfile.open(
-                        tmp_tar_path, "r:*"
-                    ) as tar_ref:  # "r:*" öffnet beliebige komprimierte Tar-Formate
-                        for member in tar_ref.getmembers():
-                            if member.isfile():
-                                # Datei aus dem Archiv lesen
-                                extracted_file = tar_ref.extractfile(member)
-                                if extracted_file:
-                                    suffix = os.path.splitext(member.name)[1]
-                                    with tempfile.NamedTemporaryFile(
-                                        delete=False, suffix=suffix
-                                    ) as tmp_file:
-                                        tmp_file.write(extracted_file.read())
-                                    if member.name in selected_files:
-                                        saved_file_names.append(
-                                            (member.name, tmp_file.name)
-                                        )
-                    os.remove(tmp_tar_path)
-                else:
-                    # save regular file
-                    suffix = os.path.splitext(uploaded_file.name)[1]
-                    with tempfile.NamedTemporaryFile(
-                        delete=False, suffix=suffix
-                    ) as tmp:
-                        for chunk in uploaded_file.chunks():
-                            tmp.write(chunk)
-                        tmp_path = tmp.name
-                    saved_file_names.append((uploaded_file.name, tmp_path))
+            file_loader = FileLoader(uploaded_files, selected_files)
+            saved_file_names = file_loader.load_files()
 
             # Save for card 2
-            context["project_name"] = project_name
-            context["collection_name"] = collection_name
             request.session["project_name"] = project_name
             request.session["collection_name"] = collection_name
             request.session["uploaded_files"] = saved_file_names
@@ -186,41 +109,21 @@ def homepage(request):
 
         context["uploaded_files"] = [name for name, _ in uploaded_files]
         context["parser_choices"] = parser_choices
-        available_parsers = request.session.get("available_parsers", {})
+        available_parsers = context["available_parsers"]
 
         try:
-            files_parser = {}
-            parsed_files = {}
+            files_parser_class = FilesParser(uploaded_files, available_parsers, o)
+            parsed_files, files_parser = files_parser_class.assign_parsers(request)
 
-            for idx, (file_name, file_path) in enumerate(uploaded_files):
-                parser_name = request.POST.get(f"parser_type_{idx}")
-                # ! some files might not have a parser assigned, right?
-                # if not parser_name:
-                #     raise ValueError(f"No parser selected for file {file_name}")
-                # ! before it was: `available_parsers[parser_name].value.parser_class`
-                # ! this syntax is not correct, as `available_parsers` is a dict which looks like:
-                # ! {'masterdata_parser_example_entry_point': {'name': 'MasterdataParserExample', 'description': 'An example parser for masterdata.', 'parser_class': <class 'masterdata_parser_example.parser.MasterdataParserExample'>}}
-                print(parser_name)
-                parser_class = available_parsers.get(parser_name, {}).get(
-                    "parser_class"
-                )
-                if not parser_class:
-                    raise ValueError(
-                        f"Parser class not found for {parser_name}. Please check the parser configuration."
-                    )
-                files_parser.setdefault(parser_class, []).append(file_path)
-                parsed_files.setdefault(parser_name, []).append(file_name)
-
-            # run run_parser for the files
             run_parser(
                 openbis=o,
                 files_parser=files_parser,
                 project_name=request.session.get("project_name", ""),
                 collection_name=request.session.get("collection_name", ""),
             )
-
             # save Logs
-            context_logs = logging(request, parsed_files, context)
+            context_logs = log_results(request, parsed_files, context)
+
             context["logs"] = context_logs
             request.session["checker_logs"] = context_logs
             request.session["parsers_assigned"] = True
@@ -232,8 +135,10 @@ def homepage(request):
             return render(request, "homepage.html", context)
 
     # GET request
+    # for card 1 forms
     context["project_name"] = request.session.get("project_name", "")
     context["collection_name"] = request.session.get("collection_name", "")
+    # for card 3/2
     context["parser_assigned"] = request.session.get("parsers_assigned", False)
     uploaded_files = request.session.get("uploaded_files", [])
     context["uploaded_files"] = (
@@ -242,44 +147,6 @@ def homepage(request):
     context["parser_choices"] = request.session.get("parser_choices", [])
     context["logs"] = request.session.get("checker_logs")
     return render(request, "homepage.html", context)
-
-
-def logging(parsed_files: dict = {}) -> list[dict]:
-    """
-    Helper function to log parsed files and format logs for the context.
-
-    Args:
-        parsed_files (dict, optional): The files parsed by the parsers. Defaults to {}.
-
-    Returns:
-        list[dict]: The list of formatted logs for the context.
-    """
-    log_storage.clear()
-    for parser, paths in parsed_files.items():
-        for path in paths:
-            log_storage.append(
-                {
-                    "event": f"[{parser}] Parsed: {os.path.basename(path)}",
-                    "timestamp": datetime.datetime.now().isoformat(),
-                    "level": "info",
-                }
-            )
-    # format logs
-    context_logs = []
-    for log in log_storage:
-        if log.get("level") == "debug":
-            continue
-        log["timestamp"] = datetime.datetime.fromisoformat(
-            log["timestamp"].replace("Z", "+00:00")
-        ).strftime("%H:%M:%S, %d.%m.%Y")
-        context_logs.append(
-            {
-                "event": log["event"],
-                "timestamp": log["timestamp"],
-                "level": "danger" if log["level"] == "error" else log["level"],
-            }
-        )
-    return context_logs
 
 
 @require_POST

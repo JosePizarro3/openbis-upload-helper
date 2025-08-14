@@ -72,7 +72,7 @@ CSRF_TRUSTED_ORIGINS = environ(
     "CSRF_TRUSTED_ORIGINS", default=[], cast=lambda v: [s.strip() for s in v.split(",")]
 )
 
-ROOT_URLCONF = "uploader.urls"
+ROOT_URLCONF = "openbis_upload_helper.uploader.urls"
 
 TEMPLATES = [
     {
@@ -90,7 +90,7 @@ TEMPLATES = [
     },
 ]
 
-WSGI_APPLICATION = "uploader.wsgi.application"
+WSGI_APPLICATION = "openbis_upload_helper.uploader.wsgi.application"
 
 
 # Database

@@ -7,7 +7,9 @@ import sys
 
 def main():
     """Run administrative tasks."""
-    os.environ.setdefault("DJANGO_SETTINGS_MODULE", "uploader.settings")
+    os.environ.setdefault(
+        "DJANGO_SETTINGS_MODULE", "openbis_upload_helper.uploader.settings"
+    )
     try:
         from django.core.management import execute_from_command_line  # noqa: PLC0415
     except ImportError as exc:
