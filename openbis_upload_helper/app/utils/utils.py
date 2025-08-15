@@ -1,10 +1,17 @@
+import datetime
+import os
+import tarfile
+import tempfile
 import uuid
+import zipfile
 
-from bam_masterdata.logger import logger
+from bam_masterdata.logger import log_storage, logger
 from cryptography.fernet import Fernet, InvalidToken
 from django.conf import settings
 from django.core.cache import cache
 from pybis import Openbis
+
+from openbis_upload_helper.uploader.entry_points import get_entry_point_parsers
 
 # Instantiate the Fernet class with the secret key
 cipher_suite = Fernet(settings.SECRET_ENCRYPTION_KEY)
@@ -51,3 +58,157 @@ def get_openbis_from_cache(request):
         return o
 
     return None
+
+
+def preload_context_request(request, context):
+    """Preload context for the homepage view.
+
+    Args:
+        request (_type_): Request object containing session data and other information.
+        context (_type_): context dictionary to be populated with session data.
+
+    Returns:
+        Dict: Avalable Parsers for the homepage view.
+        List: Parser names for the homepage view.
+    """
+    available_parsers = get_entry_point_parsers()
+    parser_choices = [
+        entrypoint.get("name", "Unknown") for entrypoint in available_parsers.values()
+    ]
+    request.session["parser_choices"] = parser_choices
+    return available_parsers, parser_choices
+
+
+class FileLoader:
+    def __init__(self, uploaded_files, selected_files):
+        self.uploaded_files = uploaded_files
+        self.selected_files = selected_files
+        self.saved_file_names = []
+
+    def load_files(self):
+        if not self.uploaded_files:
+            raise ValueError("No files uploaded.")
+
+        for uploaded_file in self.uploaded_files:
+            if uploaded_file.name.endswith(".zip"):
+                self._process_zip(uploaded_file)
+            elif uploaded_file.name.endswith((".tar", ".tar.gz", ".tar.z")):
+                self._process_tar(uploaded_file)
+            else:
+                self._process_regular_file(uploaded_file)
+
+        return self.saved_file_names
+
+    def _process_zip(self, uploaded_file):
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".zip") as tmp_zip:
+            for chunk in uploaded_file.chunks():
+                tmp_zip.write(chunk)
+            tmp_zip_path = tmp_zip.name
+
+        with zipfile.ZipFile(tmp_zip_path, "r") as zip_ref:
+            for zip_info in zip_ref.infolist():
+                if not zip_info.is_dir():
+                    suffix = os.path.splitext(zip_info.filename)[1]
+                    with tempfile.NamedTemporaryFile(
+                        delete=False, suffix=suffix
+                    ) as tmp_file:
+                        tmp_file.write(zip_ref.read(zip_info.filename))
+                        tmp_file.flush()  # Ensure the file is written before using its name
+                        if zip_info.filename in self.selected_files:
+                            self.saved_file_names.append(
+                                (zip_info.filename, tmp_file.name)
+                            )
+
+        os.remove(tmp_zip_path)
+
+    def _process_tar(self, uploaded_file):
+        suffix = os.path.splitext(uploaded_file.name)[1]
+        with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp_tar:
+            for chunk in uploaded_file.chunks():
+                tmp_tar.write(chunk)
+            tmp_tar_path = tmp_tar.name
+
+        with tarfile.open(tmp_tar_path, "r:*") as tar_ref:
+            for member in tar_ref.getmembers():
+                if member.isfile():
+                    extracted_file = tar_ref.extractfile(member)
+                    if extracted_file:
+                        suffix = os.path.splitext(member.name)[1]
+                        with tempfile.NamedTemporaryFile(
+                            delete=False, suffix=suffix
+                        ) as tmp_file:
+                            tmp_file.write(extracted_file.read())
+                            tmp_file.flush()
+                            if member.name in self.selected_files:
+                                self.saved_file_names.append(
+                                    (member.name, tmp_file.name)
+                                )
+
+        os.remove(tmp_tar_path)
+
+    def _process_regular_file(self, uploaded_file):
+        suffix = os.path.splitext(uploaded_file.name)[1]
+        with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
+            for chunk in uploaded_file.chunks():
+                tmp.write(chunk)
+            tmp_path = tmp.name
+        self.saved_file_names.append((uploaded_file.name, tmp_path))
+
+
+class FilesParser:
+    def __init__(self, uploaded_files, available_parsers, o):
+        self.uploaded_files = uploaded_files
+        self.available_parsers = available_parsers
+        self.files_parser = {}
+        self.parsed_files = {}
+        self.o = o
+        self.parser_instances = {}
+
+    def assign_parsers(self, request):
+        for idx, (file_name, file_path) in enumerate(self.uploaded_files):
+            parser_name = request.POST.get(f"parser_type_{idx}")
+            if not parser_name:
+                raise ValueError(f"No parser selected for file {file_name}")
+
+            if parser_name not in self.parser_instances:
+                for parser in self.available_parsers.values():
+                    if parser_name == parser["name"]:
+                        self.parser_instances[parser_name] = parser["parser_class"]()
+                        break
+
+            parsed_class = self.parser_instances[parser_name]
+            self.files_parser.setdefault(parsed_class, []).append(file_path)
+
+            self.parsed_files.setdefault(parser_name, []).append(file_name)
+        return self.parsed_files, self.files_parser
+
+
+def log_results(request, parsed_files={}, context={}):
+    log_storage.clear()
+    for parser, paths in parsed_files.items():
+        for path in paths:
+            log_storage.append(
+                {
+                    "event": f"[{parser}] Parsed: {os.path.basename(path)}",
+                    "timestamp": datetime.datetime.now().isoformat(),
+                    "level": "info",
+                }
+            )
+    # format logs
+    context_logs = []
+    for log in log_storage:
+        if log.get("level") == "debug":
+            continue
+        log["timestamp"] = datetime.datetime.fromisoformat(
+            log["timestamp"].replace("Z", "+00:00")
+        ).strftime("%H:%M:%S, %d.%m.%Y")
+        context_logs.append(
+            {
+                "event": log["event"],
+                "timestamp": log["timestamp"],
+                "level": "danger" if log["level"] == "error" else log["level"],
+            }
+        )
+    context["logs"] = context_logs
+    request.session["checker_logs"] = context_logs
+    return context_logs

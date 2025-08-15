@@ -27,7 +27,7 @@ SECRET_KEY = environ("SECRET_KEY")
 # Use the generated key (securely store this key in production, e.g., as an environment variable)
 SECRET_ENCRYPTION_KEY = environ("SECRET_ENCRYPTION_KEY")
 
-OPENBIS_URL = "https://main.datastore.bam.de/"
+OPENBIS_URL = "https://devel.datastore.bam.de/"
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = environ("DEBUG", default=False, cast=bool)
@@ -72,7 +72,7 @@ CSRF_TRUSTED_ORIGINS = environ(
     "CSRF_TRUSTED_ORIGINS", default=[], cast=lambda v: [s.strip() for s in v.split(",")]
 )
 
-ROOT_URLCONF = "openbis_upload_helper.uploader.urls"
+ROOT_URLCONF = "uploader.urls"
 
 TEMPLATES = [
     {
@@ -90,7 +90,7 @@ TEMPLATES = [
     },
 ]
 
-WSGI_APPLICATION = "openbis_upload_helper.uploader.wsgi.application"
+WSGI_APPLICATION = "uploader.wsgi.application"
 
 
 # Database
@@ -154,7 +154,7 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/5.1/howto/static-files/
 
 STATIC_URL = "/static/"
-STATICFILES_DIRS = [BASE_DIR / "app/static"]
+STATICFILES_DIRS = [BASE_DIR / "app" / "static"]
 STATIC_ROOT = BASE_DIR / "staticfiles"
 STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
 
