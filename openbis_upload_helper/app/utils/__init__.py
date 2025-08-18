@@ -1,5 +1,6 @@
 from .utils import (
     FileLoader,
+    FileRemover,
     FilesParser,
     decrypt_password,
     encrypt_password,

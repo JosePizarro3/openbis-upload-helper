@@ -16,6 +16,7 @@ from pybis import Openbis
 
 from .utils import (
     FileLoader,
+    FileRemover,
     FilesParser,
     encrypt_password,
     get_openbis_from_cache,
@@ -121,6 +122,10 @@ def homepage(request):
                 project_name=request.session.get("project_name", ""),
                 collection_name=request.session.get("collection_name", ""),
             )
+            # remove temporary directories
+            file_remover = FileRemover(uploaded_files)
+            file_remover.cleanup()
+
             # save Logs
             context_logs = log_results(request, parsed_files, context)
 

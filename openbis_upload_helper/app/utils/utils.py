@@ -1,5 +1,6 @@
 import datetime
 import os
+import shutil
 import tarfile
 import tempfile
 import uuid
@@ -84,6 +85,7 @@ class FileLoader:
         self.uploaded_files = uploaded_files
         self.selected_files = selected_files
         self.saved_file_names = []
+        self.temp_dirs = []  # List to keep track of temporary directories
 
     def load_files(self):
         if not self.uploaded_files:
@@ -100,26 +102,22 @@ class FileLoader:
         return self.saved_file_names
 
     def _process_zip(self, uploaded_file):
-        with tempfile.NamedTemporaryFile(delete=False, suffix=".zip") as tmp_zip:
+        tmp_dir = tempfile.mkdtemp()
+        self.temp_dirs.append(tmp_dir)
+        zip_path = os.path.join(tmp_dir, uploaded_file.name)
+        with open(zip_path, "wb") as f:
             for chunk in uploaded_file.chunks():
-                tmp_zip.write(chunk)
-            tmp_zip_path = tmp_zip.name
+                f.write(chunk)
 
-        with zipfile.ZipFile(tmp_zip_path, "r") as zip_ref:
+        with zipfile.ZipFile(zip_path, "r") as zip_ref:
             for zip_info in zip_ref.infolist():
                 if not zip_info.is_dir():
-                    suffix = os.path.splitext(zip_info.filename)[1]
-                    with tempfile.NamedTemporaryFile(
-                        delete=False, suffix=suffix
-                    ) as tmp_file:
-                        tmp_file.write(zip_ref.read(zip_info.filename))
-                        tmp_file.flush()  # Ensure the file is written before using its name
-                        if zip_info.filename in self.selected_files:
-                            self.saved_file_names.append(
-                                (zip_info.filename, tmp_file.name)
-                            )
-
-        os.remove(tmp_zip_path)
+                    target_path = os.path.join(tmp_dir, zip_info.filename)
+                    os.makedirs(os.path.dirname(target_path), exist_ok=True)
+                    with open(target_path, "wb") as out_file:
+                        out_file.write(zip_ref.read(zip_info.filename))
+                    if zip_info.filename in self.selected_files:
+                        self.saved_file_names.append((zip_info.filename, target_path))
 
     def _process_tar(self, uploaded_file):
         suffix = os.path.splitext(uploaded_file.name)[1]
@@ -128,30 +126,29 @@ class FileLoader:
                 tmp_tar.write(chunk)
             tmp_tar_path = tmp_tar.name
 
+        tmp_dir = tempfile.mkdtemp()
+        self.temp_dirs.append(tmp_dir)
         with tarfile.open(tmp_tar_path, "r:*") as tar_ref:
             for member in tar_ref.getmembers():
                 if member.isfile():
                     if extracted_file := tar_ref.extractfile(member):
-                        suffix = os.path.splitext(member.name)[1]
-                        with tempfile.NamedTemporaryFile(
-                            delete=False, suffix=suffix
-                        ) as tmp_file:
-                            tmp_file.write(extracted_file.read())
-                            tmp_file.flush()
-                            if member.name in self.selected_files:
-                                self.saved_file_names.append(
-                                    (member.name, tmp_file.name)
-                                )
+                        target_path = os.path.join(tmp_dir, member.name)
+                        os.makedirs(os.path.dirname(target_path), exist_ok=True)
+                        with open(target_path, "wb") as out_file:
+                            out_file.write(extracted_file.read())
+                        if member.name in self.selected_files:
+                            self.saved_file_names.append((member.name, target_path))
 
         os.remove(tmp_tar_path)
 
     def _process_regular_file(self, uploaded_file):
-        suffix = os.path.splitext(uploaded_file.name)[1]
-        with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
+        tmp_dir = tempfile.mkdtemp()
+        self.temp_dirs.append(tmp_dir)
+        target_path = os.path.join(tmp_dir, uploaded_file.name)
+        with open(target_path, "wb") as f:
             for chunk in uploaded_file.chunks():
-                tmp.write(chunk)
-            tmp_path = tmp.name
-        self.saved_file_names.append((uploaded_file.name, tmp_path))
+                f.write(chunk)
+        self.saved_file_names.append((uploaded_file.name, target_path))
 
 
 class FilesParser:
@@ -180,6 +177,18 @@ class FilesParser:
 
             self.parsed_files.setdefault(parser_name, []).append(file_name)
         return self.parsed_files, self.files_parser
+
+
+class FileRemover:
+    def __init__(self, uploaded_files):
+        self.uploaded_files = uploaded_files
+
+    def cleanup(self):
+        for _, temp_file in self.uploaded_files:
+            temp_dir = os.path.dirname(temp_file)
+            if os.path.exists(temp_dir):
+                shutil.rmtree(temp_dir, ignore_errors=True)
+        self.uploaded_files.clear()
 
 
 def log_results(request, parsed_files={}, context={}):
