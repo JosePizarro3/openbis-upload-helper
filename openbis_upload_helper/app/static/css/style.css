@@ -242,9 +242,11 @@ button[aria-expanded="true"] .transition-arrow {
 
 .vertical-wrapper {
     position: relative;
-    height: 25px; /* oder was du brauchst */
     display: flex;
     justify-content: center;
+    align-items: center; /* Ensures vertical centering of children */
+    min-height: 2em; /* Optional: provides minimum height, can be adjusted or removed */
+    padding: 0.5em 0; /* Optional: adds vertical spacing, can be adjusted or removed */
   }
 
 hr.vertical {
