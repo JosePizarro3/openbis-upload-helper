@@ -10,7 +10,6 @@
         <link rel="stylesheet" href="{% static 'css/style.css' %}">
         <link rel="icon" href="{% static 'assets/bammasterdata_blue_transparent.png' %}" type="image/x-icon">
         <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
-        <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     </head>
     <body class="bg-light">
         <div class="d-flex justify-content-end">
@@ -48,111 +47,9 @@
                                         </div>
                                         <ul id="file-list"></ul>
                                         <input type="hidden" name="selected_files" id="selected-files-input">
-                                        <script>
-                                        const dropArea = document.getElementById('drop-area');
-                                        const fileInput = document.getElementById('fileElem');
-                                        const fileList = document.getElementById('file-list');
-
-                                        dropArea.addEventListener('click', () => {
-                                            fileInput.click();
-                                        });
-
-                                        fileInput.addEventListener('change', () => {
-                                            handleFiles(fileInput.files);
-                                        });
-
-                                        dropArea.addEventListener('dragover', (e) => {
-                                            e.preventDefault();
-                                            dropArea.classList.add('highlight');
-                                        });
-
-                                        dropArea.addEventListener('dragleave', () => {
-                                            dropArea.classList.remove('highlight');
-                                        });
-
-                                        // add files to input form
-                                        dropArea.addEventListener('drop', (e) => {
-                                            e.preventDefault();
-                                            dropArea.classList.remove('highlight');
-                                            fileInput.files = e.dataTransfer.files;
-                                            handleFiles(e.dataTransfer.files);
-                                        });
-                                        //handle files and display them + checkboxes
-                                        async function handleFiles(files) {
-                                          fileList.innerHTML = '';
-                                          for (let i = 0; i < files.length; i++) {
-                                            const file = files[i];
-                                            const li = document.createElement('li');
-                                            // checkbox
-                                            const checkbox = document.createElement('input');
-                                            checkbox.type = 'checkbox';
-                                            checkbox.value = file.name;
-                                            checkbox.checked = true; // default checked
-                                            checkbox.style.marginRight = '10px';
-                                            if (file.name.endsWith('.zip')) {
-                                              checkbox.disabled = true;
-                                              checkbox.checked = false;
-                                            }
-                                            if (file.name.endsWith('.tar')) {
-                                              checkbox.disabled = true;
-                                              checkbox.checked = false;
-                                            }
-                                            if (checkbox.disabled==true) {
-                                              checkbox.hidden = true; // hide checkbox for compressed files
-                                            }
-                                            li.appendChild(checkbox);
-
-
-                                            const label = document.createElement('label');
-                                            label.textContent = file.name;
-                                            li.appendChild(label);
-
-
-                                            if (file.name.endsWith('.zip')) {
-                                              const arrayBuffer = await file.arrayBuffer();
-                                              const zip = await JSZip.loadAsync(arrayBuffer);
-
-                                              const ul = document.createElement('ul');
-                                              for (const filename in zip.files) {
-                                                const zipEntry = zip.files[filename];
-                                                if (!zipEntry.dir) {
-                                                    const fileLi = document.createElement('li');
-
-                                                    const innerCheckbox = document.createElement('input');
-                                                    innerCheckbox.type = 'checkbox';
-                                                    innerCheckbox.value = filename;
-                                                    innerCheckbox.style.marginRight = '10px';
-                                                    innerCheckbox.checked = true; // default checked
-
-                                                    const innerLabel = document.createElement('label');
-                                                    innerLabel.textContent = filename;
-
-                                                    fileLi.appendChild(innerCheckbox);
-                                                    fileLi.appendChild(innerLabel);
-                                                    ul.appendChild(fileLi);
-                                                }
-                                              }
-                                              li.appendChild(ul);
-                                            }
-                                            fileList.appendChild(li);
-                                          }
-                                        }
-                                        function getSelectedFiles() {
-                                          const selected = [];
-                                          document.querySelectorAll('#file-list input[type=checkbox]:checked').forEach(cb => {
-                                            selected.push(cb.value);
-                                          });
-                                          console.log("Selected files:", selected);
-                                          return selected;
-                                        }
-
-                                        document.getElementById('upload-form').addEventListener('submit', function() {
-                                          const selected = getSelectedFiles();
-                                          console.log("Selected files:", selected); // Debug
-                                          document.getElementById('selected-files-input').value = selected.join(',');
-                                        });
-                                        </script>
-                                        <button type="submit" name="upload" class="btn btn-primary">Select Parsers</button>
+                                        <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+                                        <script src="{% static 'js/homepage.js' %}"></script>
+                                        <button type="submit" name="upload" class="btn btn-primary">Upload Files</button>
                                         <a href="{% url 'homepage' %}?reset=1" class="btn btn-secondary text-center"><i class="bi bi-arrow-clockwise"></i></a>
                                     </form>
                                 </div>
@@ -261,6 +158,8 @@
             </div>
         </div>
         <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+        <script src="{% static 'js/homepage.js' %}"></script>
     </body>
     <footer class="text-center py-3 mt-5 border-top">
         <small>&copy; MIT 2025, BAM Data Store - Data Parser</small>

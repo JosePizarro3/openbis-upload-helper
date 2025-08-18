@@ -131,8 +131,7 @@ class FileLoader:
         with tarfile.open(tmp_tar_path, "r:*") as tar_ref:
             for member in tar_ref.getmembers():
                 if member.isfile():
-                    extracted_file = tar_ref.extractfile(member)
-                    if extracted_file:
+                    if extracted_file := tar_ref.extractfile(member):
                         suffix = os.path.splitext(member.name)[1]
                         with tempfile.NamedTemporaryFile(
                             delete=False, suffix=suffix
