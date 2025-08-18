@@ -121,25 +121,29 @@ class FileLoader:
 
     def _process_tar(self, uploaded_file):
         suffix = os.path.splitext(uploaded_file.name)[1]
-        with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp_tar:
-            for chunk in uploaded_file.chunks():
-                tmp_tar.write(chunk)
-            tmp_tar_path = tmp_tar.name
+        tmp_tar_path = None
+        try:
+            with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp_tar:
+                for chunk in uploaded_file.chunks():
+                    tmp_tar.write(chunk)
+                tmp_tar_path = tmp_tar.name
 
-        tmp_dir = tempfile.mkdtemp()
-        self.temp_dirs.append(tmp_dir)
-        with tarfile.open(tmp_tar_path, "r:*") as tar_ref:
-            for member in tar_ref.getmembers():
-                if member.isfile():
-                    if extracted_file := tar_ref.extractfile(member):
-                        target_path = os.path.join(tmp_dir, member.name)
-                        os.makedirs(os.path.dirname(target_path), exist_ok=True)
-                        with open(target_path, "wb") as out_file:
-                            out_file.write(extracted_file.read())
-                        if member.name in self.selected_files:
-                            self.saved_file_names.append((member.name, target_path))
+            tmp_dir = tempfile.mkdtemp()
+            self.temp_dirs.append(tmp_dir)
+            with tarfile.open(tmp_tar_path, "r:*") as tar_ref:
+                for member in tar_ref.getmembers():
+                    if member.isfile():
+                        if extracted_file := tar_ref.extractfile(member):
+                            target_path = os.path.join(tmp_dir, member.name)
+                            os.makedirs(os.path.dirname(target_path), exist_ok=True)
+                            with open(target_path, "wb") as out_file:
+                                out_file.write(extracted_file.read())
+                            if member.name in self.selected_files:
+                                self.saved_file_names.append((member.name, target_path))
 
-        os.remove(tmp_tar_path)
+        finally:
+            if tmp_tar_path and os.path.exists(tmp_tar_path):
+                os.remove(tmp_tar_path)
 
     def _process_regular_file(self, uploaded_file):
         tmp_dir = tempfile.mkdtemp()
