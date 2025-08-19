@@ -170,3 +170,5 @@ cython_debug/
 .ruff_cache
 
 settings.ini
+
+staticfiles/
