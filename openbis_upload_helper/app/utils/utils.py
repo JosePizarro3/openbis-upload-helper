@@ -99,7 +99,10 @@ class FileLoader:
             else:
                 self._process_regular_file(uploaded_file)
 
-        return self.saved_file_names
+        if self.saved_file_names:
+            return self.saved_file_names
+        else:
+            raise ValueError("No files uploaded.")
 
     def _process_zip(self, uploaded_file):
         tmp_dir = tempfile.mkdtemp()
@@ -152,7 +155,8 @@ class FileLoader:
         with open(target_path, "wb") as f:
             for chunk in uploaded_file.chunks():
                 f.write(chunk)
-        self.saved_file_names.append((uploaded_file.name, target_path))
+        if uploaded_file.name in self.selected_files:
+            self.saved_file_names.append((uploaded_file.name, target_path))
 
 
 class FilesParser:
