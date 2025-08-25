@@ -52,6 +52,8 @@ dev = [
 ]
 parsers = [
   "masterdata-parser-example@git+https://github.com/BAMresearch/masterdata-parser-example.git@main",
+  "bam-upload-parsers@git+https://github.com/LucasZimm/bam-upload-parsers.git@main",
+
 ]
 
 [tool.ruff]
