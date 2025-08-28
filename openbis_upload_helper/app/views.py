@@ -63,6 +63,8 @@ def homepage(request):
         return redirect("login")
     context = {}
     available_parsers, parser_choices = preload_context_request(request, context)
+    # TODO select only relevant spaces
+    context["spaces"] = o.get_spaces()
     context["available_parsers"] = available_parsers
 
     # Reset session if requested with button
@@ -73,6 +75,7 @@ def homepage(request):
 
     # CARD 1: Select files
     if request.method == "POST" and "upload" in request.POST:
+        space = request.POST.get("selected_space")
         project_name = request.POST.get("project_name")
         collection_name = request.POST.get("collection_name")
         uploaded_files = request.FILES.getlist("files[]")
@@ -87,6 +90,7 @@ def homepage(request):
             saved_file_names = file_loader.load_files()
 
             # Save for card 2
+            request.session["space"] = space
             request.session["project_name"] = project_name
             request.session["collection_name"] = collection_name
             request.session["uploaded_files"] = saved_file_names
@@ -121,6 +125,7 @@ def homepage(request):
                 files_parser=files_parser,
                 project_name=request.session.get("project_name", ""),
                 collection_name=request.session.get("collection_name", ""),
+                space_name=request.sesssion.get("selected_space"),
             )
             # remove temporary directories
             file_remover = FileRemover(uploaded_files)

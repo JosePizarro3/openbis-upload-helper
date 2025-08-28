@@ -28,7 +28,15 @@
                                     <h5 class="text-center">Export Options</h5>
                                     <form id="upload-form" method="POST" enctype="multipart/form-data">
                                         {% csrf_token %}
-
+                                        <div class="mb-3">
+                                            <label for="selectedSpace" class="form-label">Select Space</label>
+                                            <select class="form-control" id="selectedSpace" name="selected_space" required>
+                                                <option value="" selected disabled>Select Space</option>
+                                                {% for space in spaces %}
+                                                    <option value="{{ space }}">{{ space }}</option>
+                                                {% endfor %}
+                                            </select>
+                                        </div>
                                         <div class="mb-3">
                                             <label for="projectName" class="form-label">Project Name</label>
                                             <input type="text" class="form-control" id="projectName" value="{{ project_name }}" name="project_name" placeholder="Project Name" required>
