@@ -30,12 +30,19 @@
                                         {% csrf_token %}
                                         <div class="mb-3">
                                             <label for="selectedSpace" class="form-label">Select Space</label>
-                                            <select class="form-control" id="selectedSpace" name="selected_space" required>
-                                                <option value="" selected disabled>Select Space</option>
-                                                {% for space in spaces %}
-                                                    <option value="{{ space }}">{{ space }}</option>
-                                                {% endfor %}
-                                            </select>
+                                            {% if spaces %}
+                                                <select class="form-control" id="selectedSpace" name="selected_space" required>
+                                                    <option value="" selected disabled>Select Space</option>
+                                                    {% for space in spaces %}
+                                                        <option value="{{ space }}">{{ space }}</option>
+                                                    {% endfor %}
+                                                </select>
+                                            {% else %}
+                                                <select class="form-control" id="selectedSpace" name="selected_space" disabled>
+                                                    <option value="" selected disabled>No spaces available</option>
+                                                </select>
+                                                <div class="text-danger mt-2">No spaces are available for selection. Please contact your administrator.</div>
+                                            {% endif %}
                                         </div>
                                         <div class="mb-3">
                                             <label for="projectName" class="form-label">Project Name</label>
