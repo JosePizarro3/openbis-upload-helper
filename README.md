@@ -1,58 +1,93 @@
-# OpenBIS Upload Helper
+# OpenBIS Upload Helper (Django Web App)
 
-A simple upload tool for [OpenBIS](https://openbis.ch/) that parses metadata from the specified files, creates a preview of the data, and uploads the files and preview images along with the metadata to `OpenBIS`.
+A web-based upload tool for [BAM Data Store](https://main.datastore.bam.de/) that parses metadata from selected files, creates a preview, and uploads files and metadata to the Data Store.
 
-The structure of the metadata and some upload settings are specific to the `OpenBIS` instance used at [BAM](https://www.bam.de) and the [BAM Data Store](https://www.bam.de/Content/DE/Projekte/laufend/BAM-Data-Store/bam-data-store.html). 
+This version is implemented as a Django web application, with a modular structure for file upload, parsing, and user authentication.
+
+
+The structure of the metadata and some upload settings are specific to the `OpenBIS` instance used at [BAM](https://www.bam.de) and the [BAM Data Store](https://www.bam.de/Content/DE/Projekte/laufend/BAM-Data-Store/bam-data-store.html).
 
 ![](Documentation/GUI.jpg)
 
 ## Folder Structure
-- **Main Folder:** The Python Code for the Graphical User Interface, files specifying the requirements and license, and this readme file
-- **Parser:** Collection of classes for parsing metadata from different files (a list of currently implemented parsers can be found [here](#parsers-that-are-currently-implemented))
-- **Documentation:** Additional resources used in this documentation
+- **Main Folder:** The Python, HTML and setting files for the Graphical User Interface, files specifying the requirements and license, and this readme file
+- **Parser:** Classes for parsing metadata from different file types ([see implemented parsers](#parsers-currently-implemented)).
+- **Documentation:** Additional resources and screenshots.
+---
 
 ## Installation:
-Clone (or download) the repository, set up and activate a virtual environment, and install the packages from `requirements.txt`. For Windows:
+Clone (or download) the repository, set up and activate a virtual environment, and install the packages.
+
+For Windows with venv:
 ```commandline
 git clone https://github.com/BAMresearch/openbis-upload-helper
 cd openbis-upload-helper
-python -m venv .\venv
+python -m venv .\.venv
 venv\Scripts\activate
-pip install -r requirements.txt
+pip install .
 ```
-
-## How to run:
-After installation, the program can be run by simply double-clicking the `OpenBISUploadHelper.bat` file (on Windows), or by activating the virtual environment and running the script from the command line. For Windows:
+For Windows with conda:
 ```commandline
-cd OpenBIS_Upload_Helper
-venv\Scripts\activate
-python OpenBISUploadHelper.py
+git clone https://github.com/BAMresearch/openbis-upload-helper
+cd openbis-upload-helper
+conda create -n .venv python=3.11
+conda activate .venv
+pip install .
+
+```
+---
+## Configuration
+
+- Copy `settings.ini.example` to `.env` and adjust your OpenBIS credentials and Django settings as needed.
+- Make sure your static files are collected and available.
+
+---
+
+## How to Run
+
+Start the Django development server:
+
+```bash
+python openbis_upload_helper/manage.py migrate
+python openbis_upload_helper/manage.py runserver
 ```
 
-## How to use:
-- Select the file(s) you want to upload by clicking on the three dots `...` next to the text field for `Files`
-- You can select whether you want to create a `Preview Image` (selected by default), create a `Metadata File` (disabled by default), and upload everything to `OpenBIS` (selected by default). If you select the second option, the parsed metadata will be written to a file (you can use this option and disable the upload if you are only interested in extracting metadata with the parsers).
-- Enter your User Name. The script can be configured to automatically select the default Space Name and Project Name for this user (see source code for an example)
-- Enter your Password (will be hidden with `*` characters)
-- Select the `Space Name` from the dropdown list (or type it into the field)
-- Select the `Project Name` from the dropdown list (or type it into the field)
-- Give the `Experiment Name` to which these files belong
-- Click on `Export`
+Then open [http://127.0.0.1:8000/](http://127.0.0.1:8000/) in your browser.
 
-This will automatically create a new `Experimental Step` matching the type of characterization data you selected in the specified `Experiment` of the `Prject` in the `Space` selected above. If the `Experiment` does not exist, it will be created automatically. The program will then attempt to find the right parser to use with these data, extract the metadata, create a preview image and/or metadata file (if the corresponding options were selected above), and upload everything to `OpenBIS`, filling the metadata fields of the `Experimental Step` accordingly. The program can also be configured to automatically set the `parents` for this `Experimental Step` to the corresponding `Instrument` from the `OpenBIS Inventory` (see source code for an example)   
+---
 
-## Parsers that are currently implemented:
-- **Infrared Spectroscopy Data**, exported as csv from ThermoFischer Scientific OMNIC Software
-- **Nuclear Magnetic Resonance Spectroscopy Data**, saved as JCAMP-DX files by Oxford Instruments SpinFlow Software for the XPulse instrument
-- **Scanning Electron Microscopy Image Data**, saved as tif files by the Software of the Zeiss Supra 40 SEM
-- **Transmission Electron Microscopy Image Data**:
-  - Saved as tif files by the Software of the ThermoFisher Scientific Talos F200S 
-  - Saved as emd files by the Software of the ThermoFisher Scientific Talos F200S
-  - Saved as dm3 files by the Software of the JEOL JEM-2200FS TEM
-- **Optical Spectroscopy Data**, exported as txt from the SoftMax Pro Software of the MolecularDevices Spectramax Platereader 
-- **Dynamic Light Scattering data**, exported as csv from Malvern Zetasizer Instruments (Legacy) - For export from SQL Databases of the current Software, see [here](https://github.com/BAMresearch/MAPz_at_BAM/blob/main/Minerva/Hardware/OtherHardware/MalvernPanalytical.py) 
+## How to Use
 
-## License:
-- The code for the Upload Helper Tool and the parsers are published under the [MIT license](https://opensource.org/license/mit).
-- The code for parsing DM3 files is a slightly modified version of the code from Pierre-Ivan Raynal, published on [Github](https://github.com/piraynal/pyDM3reader) under the [MIT license](https://opensource.org/license/mit).
-- The meta- and master-data schemata the parsers produce after extracting the metadata are Copyright (C) by the authors, all rights reserved.
+- **Login:** Enter your OpenBIS credentials on the login page.
+- **Upload Files:** Select files via drag & drop or file picker. Supported formats include ZIP, TAR, CSV, TXT, DM3, EMD, TIF, etc.
+- **Select Space, Project, and Collection:** Choose the OpenBIS space, project, and collection for your upload.
+- **Assign Parsers:** After uploading, select the appropriate parser for each file from the available list.
+- **Preview & Logs:** View parsing logs and error messages directly in the web interface.
+- **Export:** Files and metadata are uploaded to OpenBIS, and preview images/metadata files are generated as needed.
+
+---
+
+## Parsers Currently Implemented
+
+- **Infrared Spectroscopy Data:** CSV from ThermoFischer Scientific OMNIC Software
+- **NMR Spectroscopy Data:** JCAMP-DX files from Oxford Instruments SpinFlow
+- **SEM Image Data:** TIF files from Zeiss Supra 40 SEM
+- **TEM Image Data:** TIF, EMD, DM3 files from ThermoFisher and JEOL instruments
+- **Optical Spectroscopy Data:** TXT from SoftMax Pro (MolecularDevices)
+- **Dynamic Light Scattering Data:** CSV from Malvern Zetasizer (Legacy)
+
+For details and updates, see the [parsers list](https://github.com/BAMresearch/openbis-upload-helper).
+
+---
+
+## License
+
+- The Upload Helper Tool and parsers are published under the [MIT license](https://opensource.org/license/mit).
+- DM3 parsing code is adapted from [Pierre-Ivan Raynal's pyDM3reader](https://github.com/piraynal/pyDM3reader) (MIT license).
+- Metadata schemata produced by the parsers are Copyright (C) by the authors.
+
+---
+
+## Contact
+
+For questions or support, please contact the BAM Data Store team or open an issue on GitHub.
