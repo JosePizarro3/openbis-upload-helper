@@ -1,4 +1,4 @@
-# OpenBIS Upload Helper (Django Web App)
+# OpenBIS Upload Helper
 
 The openBIS Upload Helper is a tool to parse files and extract their relevant metadata into objects and vocabularies in openBIS.
 
