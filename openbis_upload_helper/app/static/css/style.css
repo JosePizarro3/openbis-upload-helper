@@ -149,7 +149,7 @@ body {
 
 /* Labels styling */
 .form-label {
-    color: #2d572c; /* Darker green for form labels */
+    color: #000000; /* Dark for form labels */
     font-weight: bold;
     margin-bottom: 0;
 }
@@ -251,12 +251,12 @@ button[aria-expanded="true"] .transition-arrow {
 
 hr.vertical {
     position: absolute;
-    height: calc(100% + 20px);; /* Länge der vertikalen Linie */
+    height: calc(100% + 20px);;
     top: -20px;
     width: 0;
     bottom: 20px;
     border: none;
-    border-left: 2px solid black; /* statt border: 1px solid */
+    border-left: 2px solid black;
     margin: 0;
   }
 
@@ -275,7 +275,6 @@ hr.vertical {
     background-color: #f3eaff;
 }
 
-/* 1. Hauptliste */
 ul#file-list {
     width: 100%;
     margin: 0;
@@ -316,3 +315,83 @@ ul#file-list ul li:last-child {
     border-bottom: none;
 }
 
+.tooltip {
+  position: relative;
+  display: inline-block;
+  cursor: pointer;
+  color: var(--bam-schwarz-100)
+}
+
+.tooltip .tooltiptext {
+  visibility: hidden;
+  padding: 0.25em 0.5em;
+  background-color: black;
+  color: #fff;
+  text-align: center;
+  border-radius: 0.25em;
+  white-space: nowrap;
+
+  /* Position the tooltip */
+  position: absolute;
+  z-index: 1;
+  top: 100%;
+  left: 100%;
+  transition-property: visibility;
+  transition-delay: 0s;
+}
+
+.tooltip:hover .tooltiptext {
+  visibility: visible;
+  transition-delay: 0.3s;
+}
+
+.parser-tooltip-group {
+  position: relative;
+  display: inline-block;
+}
+
+.tooltip-trigger {
+  cursor: pointer;
+  color: var(--bam-blau-dark);
+  font-weight: bold;
+}
+
+.tooltip-list {
+  visibility: hidden;
+  opacity: 0;
+  position: absolute;
+  right: 0;
+  top: 100%;
+  min-width: 200px;
+  max-height: 220px;
+  overflow-y: auto;
+  background: #ffffff;
+  color: #000000;
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.15);
+  padding: 12px 18px;
+  z-index: 100;
+  transition: opacity 0.2s;
+  font-size: 0.98em;
+}
+
+.parser-tooltip-group:hover .tooltip-list,
+.parser-tooltip-group:focus-within .tooltip-list {
+  visibility: visible;
+  opacity: 1;
+}
+
+.tooltip-list ul {
+  margin: 8px 0 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.tooltip-list li {
+  padding: 3px 0;
+  border-bottom: 1px solid #444;
+}
+
+.tooltip-list li:last-child {
+  border-bottom: none;
+}
