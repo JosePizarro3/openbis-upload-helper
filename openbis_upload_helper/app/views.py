@@ -63,7 +63,7 @@ def homepage(request):
         return redirect("login")
     context = {}
     available_parsers, parser_choices = preload_context_request(request, context)
-    # TODO select only relevant spaces
+    # TODO change to only spaces available for the user
     context["spaces"] = o.get_spaces()
     context["available_parsers"] = available_parsers
 
