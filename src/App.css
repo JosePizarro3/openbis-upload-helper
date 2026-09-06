@@ -1,37 +1,111 @@
-:root {
-  font-family:
-    Inter,
-    system-ui,
-    -apple-system,
-    BlinkMacSystemFont,
-    "Segoe UI",
-    sans-serif;
+@font-face {
+  font-family: "BAM Klavika Light";
+  src: url("./assets/fonts/BAMKlavika-Light.ttf") format("truetype");
+  font-weight: 400;
+  font-style: normal;
+}
 
+@font-face {
+  font-family: "BAM Klavika Light";
+  src: url("./assets/fonts/BAMKlavika-LightItalic.ttf") format("truetype");
+  font-weight: 400;
+  font-style: italic;
+}
+
+@font-face {
+  font-family: "BAM Klavika Medium";
+  src: url("./assets/fonts/BAMKlavika-Medium.ttf") format("truetype");
+  font-weight: 500;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: "BAM Klavika Medium";
+  src: url("./assets/fonts/BAMKlavika-MediumItalic.ttf") format("truetype");
+  font-weight: 500;
+  font-style: italic;
+}
+
+:root {
+  /* BAM fonts */
+  --font-body: "BAM Klavika Light", Arial, sans-serif;
+  --font-title: "BAM Klavika Medium", Arial, sans-serif;
+
+  /* BAM neutrals */
+  --bam-white: rgb(243, 243, 243);
+  --bam-white-dark: rgb(238, 241, 243);
+
+  --bam-black-100: rgb(0, 40, 50);
+  --bam-black-80: rgb(50, 84, 99);
+  --bam-black-60: rgb(95, 123, 137);
+  --bam-black-45: rgb(125, 149, 163);
+  --bam-black-30: rgb(163, 184, 195);
+  --bam-black-15: rgb(204, 216, 223);
+
+  /* BAM blue palette */
+  --bam-blue: rgb(0, 175, 240);
+  --bam-blue-dark: rgb(0, 137, 186);
+  --bam-blue-darker: rgb(0, 117, 153);
+  --bam-blue-darkest: rgb(0, 85, 110);
+
+  /* Semantic colors */
+  --background: var(--bam-white);
+  --surface: #ffffff;
+  --surface-muted: var(--bam-white-dark);
+
+  --text-primary: var(--bam-black-100);
+  --text-secondary: var(--bam-black-60);
+
+  --border: var(--bam-black-15);
+  --border-strong: var(--bam-black-30);
+
+  --primary: var(--bam-blue-darker);
+  --primary-hover: var(--bam-blue-dark);
+  --primary-active: var(--bam-blue-darkest);
+
+  --focus-ring: rgba(0, 137, 186, 0.25);
+
+  --error: rgb(180, 15, 30);
+
+  font-family: var(--font-body);
   font-size: 16px;
   line-height: 1.5;
   font-weight: 400;
 
-  color: #1f2937;
-  background: #f3f4f6;
+  color: var(--text-primary);
+  background: var(--background);
 
   font-synthesis: none;
   text-rendering: optimizeLegibility;
 
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  -webkit-text-size-adjust: 100%;
 }
 
 * {
   box-sizing: border-box;
 }
 
+html,
+body,
+#root {
+  min-height: 100%;
+}
+
 body {
   margin: 0;
+  background: var(--background);
+  color: var(--text-primary);
 }
 
 button,
 input {
   font: inherit;
+}
+
+button {
+  cursor: pointer;
 }
 
 /* Login */
@@ -44,38 +118,49 @@ input {
   justify-content: center;
 
   padding: 2rem;
+
+  background:
+    linear-gradient(
+      135deg,
+      var(--bam-white) 0%,
+      var(--bam-white-dark) 100%
+    );
 }
 
 .login-card {
   width: 100%;
-  max-width: 400px;
+  max-width: 420px;
 
-  padding: 2rem;
+  padding: 2.25rem;
 
-  background: white;
+  background: var(--surface);
 
-  border: 1px solid #d1d5db;
-  border-radius: 10px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
 
   box-shadow:
-    0 1px 2px rgba(0, 0, 0, 0.05),
-    0 4px 12px rgba(0, 0, 0, 0.08);
+    0 2px 6px rgba(0, 40, 50, 0.06),
+    0 12px 32px rgba(0, 40, 50, 0.10);
 }
 
 .login-header {
-  margin-bottom: 1.5rem;
+  margin-bottom: 1.75rem;
 }
 
 .login-header h1 {
   margin: 0;
 
-  font-size: 1.5rem;
+  font-family: var(--font-title);
+  font-size: 1.7rem;
+  font-weight: 500;
+
+  color: var(--bam-blue-darkest);
 }
 
 .login-header p {
   margin: 0.5rem 0 0;
 
-  color: #6b7280;
+  color: var(--text-secondary);
 }
 
 .login-form {
@@ -88,57 +173,85 @@ input {
 .login-form label {
   margin-top: 0.75rem;
 
+  font-family: var(--font-title);
   font-weight: 500;
+
+  color: var(--bam-black-80);
 }
 
 .login-form input {
   width: 100%;
 
-  padding: 0.65rem 0.75rem;
+  padding: 0.72rem 0.8rem;
 
-  border: 1px solid #d1d5db;
-  border-radius: 6px;
+  border: 1px solid var(--border-strong);
+  border-radius: 7px;
 
-  background: white;
-  color: #111827;
+  background: #ffffff;
+  color: var(--text-primary);
+
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+.login-form input:hover {
+  border-color: var(--bam-black-45);
 }
 
 .login-form input:focus {
-  outline: 2px solid #2563eb;
-  outline-offset: 1px;
+  outline: none;
+
+  border-color: var(--primary);
+
+  box-shadow: 0 0 0 3px var(--focus-ring);
+}
+
+.login-form input:disabled {
+  background: var(--surface-muted);
+  cursor: not-allowed;
 }
 
 .login-form button {
-  margin-top: 1.25rem;
+  margin-top: 1.35rem;
 
-  padding: 0.7rem 1rem;
+  padding: 0.72rem 1rem;
 
-  border: 0;
-  border-radius: 6px;
+  border: 1px solid var(--primary);
+  border-radius: 7px;
 
-  background: #2563eb;
-  color: white;
+  background: var(--primary);
+  color: #ffffff;
 
+  font-family: var(--font-title);
   font-weight: 500;
 
-  cursor: pointer;
+  transition:
+    background-color 0.15s ease,
+    border-color 0.15s ease;
 }
 
-.login-form button:hover {
-  background: #1d4ed8;
+.login-form button:hover:not(:disabled) {
+  background: var(--primary-hover);
+  border-color: var(--primary-hover);
+}
+
+.login-form button:active:not(:disabled) {
+  background: var(--primary-active);
+  border-color: var(--primary-active);
 }
 
 .login-form button:disabled {
-  opacity: 0.6;
+  opacity: 0.55;
   cursor: default;
 }
 
 .login-error {
   margin: 0.75rem 0 0;
 
-  color: #b91c1c;
+  color: var(--error);
 
-  font-size: 0.9rem;
+  font-size: 0.92rem;
 }
 
 /* Main application */
@@ -146,11 +259,11 @@ input {
 .main-page {
   min-height: 100vh;
 
-  background: #f3f4f6;
+  background: var(--background);
 }
 
 .app-header {
-  height: 64px;
+  min-height: 68px;
 
   display: flex;
   align-items: center;
@@ -158,28 +271,54 @@ input {
 
   padding: 0 1.5rem;
 
-  background: white;
+  background: var(--surface-muted);
 
-  border-bottom: 1px solid #d1d5db;
+  border-bottom: 1px solid var(--border);
 }
 
 .app-header h1 {
   margin: 0;
 
-  font-size: 1.25rem;
+  font-family: var(--font-title);
+  font-size: 1.35rem;
+  font-weight: 500;
+
+  color: var(--bam-blue-darkest);
 }
 
 .app-header button {
-  padding: 0.5rem 0.8rem;
+  padding: 0.5rem 0.85rem;
 
-  border: 1px solid #d1d5db;
+  border: 1px solid var(--bam-blue-darker);
   border-radius: 6px;
 
-  background: white;
+  background: transparent;
+  color: var(--bam-blue-darker);
 
-  cursor: pointer;
+  font-family: var(--font-title);
+
+  transition:
+    background-color 0.15s ease,
+    color 0.15s ease;
+}
+
+.app-header button:hover {
+  background: var(--bam-blue-darker);
+  color: #ffffff;
 }
 
 .main-content {
+  max-width: 1200px;
+
+  margin: 0 auto;
   padding: 2rem;
+}
+
+.main-content h2 {
+  margin-top: 0;
+
+  font-family: var(--font-title);
+  font-weight: 500;
+
+  color: var(--bam-black-100);
 }
