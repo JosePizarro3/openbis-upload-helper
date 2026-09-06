@@ -8,12 +8,17 @@ interface LoginPageProps {
 }
 
 export function LoginPage({ onLogin }: LoginPageProps) {
+  const [serverUrl, setServerUrl] = useState("https://openbis.example.org");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [personalAccessToken, setPersonalAccessToken] = useState("");
+
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
-  async function handleSubmit(event: SyntheticEvent<HTMLFormElement>) {
+  async function handleSubmit(
+    event: SyntheticEvent<HTMLFormElement>,
+  ) {
     event.preventDefault();
 
     setError(null);
@@ -21,8 +26,10 @@ export function LoginPage({ onLogin }: LoginPageProps) {
 
     try {
       const result = await login({
+        serverUrl,
         username,
         password,
+        personalAccessToken,
       });
 
       if (result.success) {
@@ -30,7 +37,10 @@ export function LoginPage({ onLogin }: LoginPageProps) {
         return;
       }
 
-      setError(result.error ?? "Login failed.");
+      setError(
+        result.error ??
+          "Invalid username/password or personal access token.",
+      );
     } finally {
       setLoading(false);
     }
@@ -41,10 +51,26 @@ export function LoginPage({ onLogin }: LoginPageProps) {
       <section className="login-card">
         <div className="login-header">
           <h1>openBIS Upload Helper</h1>
-          <p>Sign in to continue.</p>
+          <p>Sign in to your openBIS instance to continue.</p>
         </div>
 
         <form className="login-form" onSubmit={handleSubmit}>
+          <label htmlFor="server-url">
+            openBIS server
+          </label>
+
+          <input
+            id="server-url"
+            type="url"
+            value={serverUrl}
+            onChange={(event) =>
+              setServerUrl(event.currentTarget.value)
+            }
+            placeholder="https://openbis.example.org"
+            autoComplete="url"
+            disabled={loading}
+          />
+
           <label htmlFor="username">
             Username
           </label>
@@ -53,10 +79,12 @@ export function LoginPage({ onLogin }: LoginPageProps) {
             id="username"
             type="text"
             value={username}
-            onChange={(event) => setUsername(event.currentTarget.value)}
+            onChange={(event) =>
+              setUsername(event.currentTarget.value)
+            }
             autoComplete="username"
             autoFocus
-            disabled={loading}
+            disabled={loading || Boolean(personalAccessToken)}
           />
 
           <label htmlFor="password">
@@ -67,8 +95,29 @@ export function LoginPage({ onLogin }: LoginPageProps) {
             id="password"
             type="password"
             value={password}
-            onChange={(event) => setPassword(event.currentTarget.value)}
+            onChange={(event) =>
+              setPassword(event.currentTarget.value)
+            }
             autoComplete="current-password"
+            disabled={loading || Boolean(personalAccessToken)}
+          />
+
+          <div className="login-separator">
+            <span>or</span>
+          </div>
+
+          <label htmlFor="personal-access-token">
+            Personal Access Token
+          </label>
+
+          <input
+            id="personal-access-token"
+            type="password"
+            value={personalAccessToken}
+            onChange={(event) =>
+              setPersonalAccessToken(event.currentTarget.value)
+            }
+            autoComplete="off"
             disabled={loading}
           />
 
