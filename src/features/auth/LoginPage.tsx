@@ -1,3 +1,36 @@
+/*
+LoginPage
+    │
+    │ invoke("login")
+    ▼
+Rust login()
+    │
+    │ stdin JSON
+    ▼
+uv run openbis-upload-helper login
+    │
+    ▼
+LoginRequest.model_validate_json()
+    │
+    ▼
+pybis.Openbis(...)
+    │
+    ▼
+openbis.login("admin", "test")
+    │
+    ▼
+LoginResult.model_dump_json()
+    │
+    ▼
+Rust serde_json
+    │
+    ▼
+React LoginResult
+    │
+    ▼
+MainPage
+*/
+
 import { useState } from "react";
 import type { SyntheticEvent } from "react";
 
@@ -8,7 +41,7 @@ interface LoginPageProps {
 }
 
 export function LoginPage({ onLogin }: LoginPageProps) {
-  const [serverUrl, setServerUrl] = useState("https://openbis.example.org");
+  const [serverUrl, setServerUrl] = useState("https://local.openbis.ch/openbis");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [personalAccessToken, setPersonalAccessToken] = useState("");
@@ -40,6 +73,12 @@ export function LoginPage({ onLogin }: LoginPageProps) {
       setError(
         result.error ??
           "Invalid username/password or personal access token.",
+      );
+    } catch (error) {
+      setError(
+        error instanceof Error
+          ? error.message
+          : String(error),
       );
     } finally {
       setLoading(false);

@@ -2,44 +2,50 @@ from pybis import Openbis
 from pydantic import BaseModel
 
 
+class LoginRequest(BaseModel):
+    server_url: str
+    username: str = ""
+    password: str = ""
+    personal_access_token: str = ""
+
+
 class LoginResult(BaseModel):
     success: bool
     username: str | None = None
     error: str | None = None
 
 
-def login(
-    url: str, username: str = "", password: str = "", personal_access_token: str = ""
-) -> LoginResult:
+def login(request: LoginRequest) -> LoginResult:
     try:
-        openbis = Openbis(url)
+        openbis = Openbis(request.server_url)
 
-        if personal_access_token:
+        # PAT takes precedence, matching the old Django application.
+        if request.personal_access_token:
             openbis.set_token(
-                personal_access_token,
+                request.personal_access_token,
                 save_token=False,
             )
 
             return LoginResult(
                 success=True,
-                username=username or None,
+                username=request.username or None,
             )
 
-        if not username or not password:
+        if not request.username or not request.password:
             return LoginResult(
                 success=False,
                 error="Username and password are required.",
             )
 
         openbis.login(
-            username,
-            password,
+            request.username,
+            request.password,
             save_token=False,
         )
 
         return LoginResult(
             success=True,
-            username=username,
+            username=request.username,
         )
 
     except Exception:

@@ -1,6 +1,7 @@
 import argparse
+import sys
 
-from openbis_upload_helper.client.openbis import login
+from openbis_upload_helper.client.openbis import LoginRequest, login
 
 
 def main() -> None:
@@ -12,28 +13,7 @@ def main() -> None:
     )
 
     subparsers.add_parser("hello")
-
-    login_parser = subparsers.add_parser("login")
-
-    login_parser.add_argument(
-        "--url",
-        required=True,
-    )
-
-    login_parser.add_argument(
-        "--username",
-        default="",
-    )
-
-    login_parser.add_argument(
-        "--password",
-        default="",
-    )
-
-    login_parser.add_argument(
-        "--personal-access-token",
-        default="",
-    )
+    subparsers.add_parser("login")
 
     args = parser.parse_args()
 
@@ -42,12 +22,23 @@ def main() -> None:
         return
 
     if args.command == "login":
-        result = login(
-            url=args.url,
-            username=args.username,
-            password=args.password,
-            personal_access_token=args.personal_access_token,
-        )
+        # input is a JSON payload with the login request, e.g.:
+        # {
+        #   "server_url": "https://local.openbis.ch/openbis",
+        #   "username": "admin",
+        #   "password": "test",
+        #   "personal_access_token": ""
+        # }
+        payload = sys.stdin.read()
+
+        # output is a JSON payload with the login result, e.g.:
+        # {
+        #   "success": true,
+        #   "username": "admin",
+        #   "error": null
+        # }
+        request = LoginRequest.model_validate_json(payload)
+        result = login(request)
 
         print(result.model_dump_json())
         return
