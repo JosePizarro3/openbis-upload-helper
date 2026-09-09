@@ -8,6 +8,7 @@ dependencies = [
     "bam-masterdata>=0.13.0",
     "pybis>=1.37.5",
     "pydantic>=2.13.5",
+    "masterdata-parser-example @ git+https://github.com/BAMresearch/masterdata-parser-example.git@main",
 ]
 
 [dependency-groups]

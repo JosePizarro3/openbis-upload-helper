@@ -314,6 +314,14 @@ wheels = [
 ]
 
 [[package]]
+name = "masterdata-parser-example"
+version = "0.1.dev16+gc6e43ed1f"
+source = { git = "https://github.com/BAMresearch/masterdata-parser-example.git?rev=main#c6e43ed1fa2a661b828541906256698d83e6e6c1" }
+dependencies = [
+    { name = "bam-masterdata" },
+]
+
+[[package]]
 name = "numpy"
 version = "2.5.2"
 source = { registry = "https://pypi.org/simple" }
@@ -392,6 +400,7 @@ version = "0.1.0"
 source = { editable = "." }
 dependencies = [
     { name = "bam-masterdata" },
+    { name = "masterdata-parser-example" },
     { name = "pybis" },
     { name = "pydantic" },
 ]
@@ -405,6 +414,7 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "bam-masterdata", specifier = ">=0.13.0" },
+    { name = "masterdata-parser-example", git = "https://github.com/BAMresearch/masterdata-parser-example.git?rev=main" },
     { name = "pybis", specifier = ">=1.37.5" },
     { name = "pydantic", specifier = ">=2.13.5" },
 ]
