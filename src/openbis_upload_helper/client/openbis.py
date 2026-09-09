@@ -21,14 +21,9 @@ class AuthRequest(BaseModel):
     token: str
 
 
-class Space(BaseModel):
-    code: str
-    description: str | None = None
-
-
 class SpacesResult(BaseModel):
     success: bool
-    spaces: list[Space] = Field(default_factory=list)
+    spaces: list[str] = Field(default_factory=list)
     error: str | None = None
 
 
@@ -87,15 +82,15 @@ def get_spaces(request: AuthRequest) -> SpacesResult:
             save_token=False,
         )
 
-        spaces = [Space(code=space.code) for space in openbis.get_spaces()]
+        spaces = [space.code for space in openbis.get_spaces()]
 
         return SpacesResult(
             success=True,
             spaces=spaces,
         )
 
-    except Exception:
+    except Exception as exc:
         return SpacesResult(
             success=False,
-            error="Could not retrieve spaces from openBIS.",
+            error=f"Could not retrieve spaces from openBIS: {exc}",
         )

@@ -1,6 +1,6 @@
 import { useState } from "react";
 
-import { LoginPage } from "./features/auth/LoginPage";
+import { LoginPage } from "./pages/LoginPage";
 import { MainPage } from "./pages/MainPage";
 
 import "./App.css";

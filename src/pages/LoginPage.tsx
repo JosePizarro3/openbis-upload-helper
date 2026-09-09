@@ -34,14 +34,14 @@ MainPage
 import { useState } from "react";
 import type { SyntheticEvent } from "react";
 
-import { login } from "./auth";
+import { login } from "../features/auth/auth";
 
 interface LoginPageProps {
   onLogin: () => void;
 }
 
 export function LoginPage({ onLogin }: LoginPageProps) {
-  const [serverUrl, setServerUrl] = useState("https://local.openbis.ch/openbis");
+  const [serverUrl, setServerUrl] = useState("https://main.datastore.bam.de");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [personalAccessToken, setPersonalAccessToken] = useState("");
@@ -105,7 +105,7 @@ export function LoginPage({ onLogin }: LoginPageProps) {
             onChange={(event) =>
               setServerUrl(event.currentTarget.value)
             }
-            placeholder="https://openbis.example.org"
+            placeholder="https://main.datastore.bam.de"
             autoComplete="url"
             disabled={loading}
           />

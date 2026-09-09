@@ -1,8 +1,20 @@
+import { useState } from "react";
+
+import {
+  SpaceSelector,
+} from "../features/destination/SpaceSelector";
+
+
 interface MainPageProps {
   onLogout: () => void;
 }
 
-export function MainPage({ onLogout }: MainPageProps) {
+
+export function MainPage({
+  onLogout,
+}: MainPageProps) {
+  const [space, setSpace] = useState("");
+
   return (
     <main className="main-page">
       <header className="app-header">
@@ -14,11 +26,23 @@ export function MainPage({ onLogout }: MainPageProps) {
       </header>
 
       <section className="main-content">
-        <h2>Upload data</h2>
+        <div className="workflow-card">
+          <div className="workflow-card-header">
+            <h2>Select destination</h2>
 
-        <p>
-          You are logged in.
-        </p>
+            <p>
+              Choose where the data should be stored
+              in openBIS.
+            </p>
+          </div>
+
+          <div className="workflow-card-content">
+            <SpaceSelector
+              value={space}
+              onChange={setSpace}
+            />
+          </div>
+        </div>
       </section>
     </main>
   );
