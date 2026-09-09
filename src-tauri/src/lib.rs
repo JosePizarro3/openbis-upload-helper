@@ -6,11 +6,12 @@
 // For production:
 //   Python will be bundled as a sidecar and invoked instead.
 
+mod source;
+
 use serde::{Deserialize, Serialize};
 use std::io::Write;
 use std::process::{Command, Stdio};
 use std::sync::Mutex;
-
 
 #[derive(Debug, Serialize)]
 struct PythonLoginRequest {
@@ -20,7 +21,6 @@ struct PythonLoginRequest {
     personal_access_token: String,
 }
 
-
 #[derive(Debug, Deserialize)]
 struct PythonLoginResult {
     success: bool,
@@ -28,7 +28,6 @@ struct PythonLoginResult {
     token: Option<String>,
     error: Option<String>,
 }
-
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -38,18 +37,15 @@ struct LoginResult {
     error: Option<String>,
 }
 
-
 #[derive(Clone, Serialize)]
 struct AuthState {
     server_url: String,
     token: String,
 }
 
-
 struct AppState {
     auth: Mutex<Option<AuthState>>,
 }
-
 
 #[derive(Debug, Deserialize, Serialize)]
 struct SpacesResult {
@@ -58,7 +54,6 @@ struct SpacesResult {
     error: Option<String>,
 }
 
-
 #[derive(Debug, Serialize)]
 struct ProjectsRequest {
     server_url: String,
@@ -66,14 +61,12 @@ struct ProjectsRequest {
     space: String,
 }
 
-
 #[derive(Debug, Deserialize, Serialize)]
 struct ProjectsResult {
     success: bool,
     projects: Vec<String>,
     error: Option<String>,
 }
-
 
 #[derive(Debug, Serialize)]
 struct CollectionsRequest {
@@ -83,7 +76,6 @@ struct CollectionsRequest {
     project: String,
 }
 
-
 #[derive(Debug, Deserialize, Serialize)]
 struct CollectionsResult {
     success: bool,
@@ -91,53 +83,33 @@ struct CollectionsResult {
     error: Option<String>,
 }
 
-
-fn run_python_command(
-    command: &str,
-    payload: &str,
-) -> Result<Vec<u8>, String> {
+fn run_python_command(command: &str, payload: &str) -> Result<Vec<u8>, String> {
     let mut child = Command::new("uv") // Development only; Replace this with the bundled Python sidecar later.
-        .args([
-            "run",
-            "openbis-upload-helper",
-            command,
-        ])
+        .args(["run", "openbis-upload-helper", command])
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .spawn()
-        .map_err(|error| {
-            format!("Failed to start Python backend: {error}")
-        })?;
+        .map_err(|error| format!("Failed to start Python backend: {error}"))?;
 
     if let Some(mut stdin) = child.stdin.take() {
         stdin
             .write_all(payload.as_bytes())
-            .map_err(|error| {
-                format!(
-                    "Failed to send data to Python backend: {error}"
-                )
-            })?;
+            .map_err(|error| format!("Failed to send data to Python backend: {error}"))?;
     }
 
     let output = child
         .wait_with_output()
-        .map_err(|error| {
-            format!("Python backend failed: {error}")
-        })?;
+        .map_err(|error| format!("Python backend failed: {error}"))?;
 
     if !output.status.success() {
-        let stderr =
-            String::from_utf8_lossy(&output.stderr);
+        let stderr = String::from_utf8_lossy(&output.stderr);
 
-        return Err(format!(
-            "Python backend failed: {stderr}"
-        ));
+        return Err(format!("Python backend failed: {stderr}"));
     }
 
     Ok(output.stdout)
 }
-
 
 #[tauri::command]
 fn login(
@@ -154,40 +126,25 @@ fn login(
         personal_access_token,
     };
 
-    let payload =
-        serde_json::to_string(&request)
-            .map_err(|error| error.to_string())?;
+    let payload = serde_json::to_string(&request).map_err(|error| error.to_string())?;
 
-    let output =
-        run_python_command("login", &payload)?;
+    let output = run_python_command("login", &payload)?;
 
-    let python_result =
-        serde_json::from_slice::<PythonLoginResult>(&output)
-            .map_err(|error| {
-                format!(
-                    "Invalid response from Python backend: {error}"
-                )
-            })?;
+    let python_result = serde_json::from_slice::<PythonLoginResult>(&output)
+        .map_err(|error| format!("Invalid response from Python backend: {error}"))?;
 
     if python_result.success {
         let token = python_result
             .token
             .clone()
-            .ok_or(
-                "Successful login did not return an authentication token."
-            )?;
+            .ok_or("Successful login did not return an authentication token.")?;
 
         let mut auth = state
             .auth
             .lock()
-            .map_err(|_| {
-                "Failed to access authentication state."
-            })?;
+            .map_err(|_| "Failed to access authentication state.")?;
 
-        *auth = Some(AuthState {
-            server_url,
-            token,
-        });
+        *auth = Some(AuthState { server_url, token });
     }
 
     Ok(LoginResult {
@@ -197,56 +154,34 @@ fn login(
     })
 }
 
-
 #[tauri::command]
-fn get_spaces(
-    state: tauri::State<AppState>,
-) -> Result<SpacesResult, String> {
+fn get_spaces(state: tauri::State<AppState>) -> Result<SpacesResult, String> {
     let auth = {
         let stored_auth = state
             .auth
             .lock()
-            .map_err(|_| {
-                "Failed to access authentication state."
-            })?;
+            .map_err(|_| "Failed to access authentication state.")?;
 
-        stored_auth
-            .clone()
-            .ok_or("Not authenticated.")?
+        stored_auth.clone().ok_or("Not authenticated.")?
     };
 
-    let payload =
-        serde_json::to_string(&auth)
-            .map_err(|error| error.to_string())?;
+    let payload = serde_json::to_string(&auth).map_err(|error| error.to_string())?;
 
-    let output =
-        run_python_command("spaces", &payload)?;
+    let output = run_python_command("spaces", &payload)?;
 
     serde_json::from_slice::<SpacesResult>(&output)
-        .map_err(|error| {
-            format!(
-                "Invalid response from Python backend: {error}"
-            )
-        })
+        .map_err(|error| format!("Invalid response from Python backend: {error}"))
 }
 
-
 #[tauri::command]
-fn get_projects(
-    state: tauri::State<AppState>,
-    space: String,
-) -> Result<ProjectsResult, String> {
+fn get_projects(state: tauri::State<AppState>, space: String) -> Result<ProjectsResult, String> {
     let auth = {
         let stored_auth = state
             .auth
             .lock()
-            .map_err(|_| {
-                "Failed to access authentication state."
-            })?;
+            .map_err(|_| "Failed to access authentication state.")?;
 
-        stored_auth
-            .clone()
-            .ok_or("Not authenticated.")?
+        stored_auth.clone().ok_or("Not authenticated.")?
     };
 
     let request = ProjectsRequest {
@@ -255,21 +190,13 @@ fn get_projects(
         space,
     };
 
-    let payload =
-        serde_json::to_string(&request)
-            .map_err(|error| error.to_string())?;
+    let payload = serde_json::to_string(&request).map_err(|error| error.to_string())?;
 
-    let output =
-        run_python_command("projects", &payload)?;
+    let output = run_python_command("projects", &payload)?;
 
     serde_json::from_slice::<ProjectsResult>(&output)
-        .map_err(|error| {
-            format!(
-                "Invalid response from Python backend: {error}"
-            )
-        })
+        .map_err(|error| format!("Invalid response from Python backend: {error}"))
 }
-
 
 #[tauri::command]
 fn get_collections(
@@ -281,13 +208,9 @@ fn get_collections(
         let stored_auth = state
             .auth
             .lock()
-            .map_err(|_| {
-                "Failed to access authentication state."
-            })?;
+            .map_err(|_| "Failed to access authentication state.")?;
 
-        stored_auth
-            .clone()
-            .ok_or("Not authenticated.")?
+        stored_auth.clone().ok_or("Not authenticated.")?
     };
 
     let request = CollectionsRequest {
@@ -297,37 +220,30 @@ fn get_collections(
         project,
     };
 
-    let payload =
-        serde_json::to_string(&request)
-            .map_err(|error| error.to_string())?;
+    let payload = serde_json::to_string(&request).map_err(|error| error.to_string())?;
 
-    let output =
-        run_python_command("collections", &payload)?;
+    let output = run_python_command("collections", &payload)?;
 
     serde_json::from_slice::<CollectionsResult>(&output)
-        .map_err(|error| {
-            format!(
-                "Invalid response from Python backend: {error}"
-            )
-        })
+        .map_err(|error| format!("Invalid response from Python backend: {error}"))
 }
-
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_dialog::init())
         .manage(AppState {
             auth: Mutex::new(None),
         })
         .plugin(tauri_plugin_opener::init())
-        .invoke_handler(
-            tauri::generate_handler![
-                login,
-                get_spaces,
-                get_projects,
-                get_collections,
-            ],
-        )
+        .plugin(tauri_plugin_dialog::init())
+        .invoke_handler(tauri::generate_handler![
+            login,
+            get_spaces,
+            get_projects,
+            get_collections,
+            source::scan_sources,
+        ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

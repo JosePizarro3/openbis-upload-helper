@@ -10,6 +10,14 @@ import {
   SpaceSelector,
 } from "../features/destination/SpaceSelector";
 
+import {
+  SourceWorkspace,
+} from "../features/source/SourceWorkspace";
+
+import type {
+  SourceNode,
+} from "../features/source/source";
+
 
 interface MainPageProps {
   onLogout: () => void;
@@ -27,6 +35,18 @@ export function MainPage({
 
   const [collection, setCollection] = useState("");
 
+  const [sourceNodes, setSourceNodes] =
+    useState<SourceNode[]>([]);
+
+  const [sourceRootPaths, setSourceRootPaths] =
+    useState<string[]>([]);
+
+
+  const destinationReady =
+    spaceExists &&
+    project.trim().length > 0;
+
+
   function handleSpaceChange(value: string) {
     setSpace(value);
 
@@ -36,11 +56,22 @@ export function MainPage({
     setCollection("");
   }
 
+
   function handleProjectChange(value: string) {
     setProject(value);
 
     setCollection("");
   }
+
+
+  function handleSourcesChange(
+    nodes: SourceNode[],
+    rootPaths: string[],
+  ) {
+    setSourceNodes(nodes);
+    setSourceRootPaths(rootPaths);
+  }
+
 
   return (
     <main className="main-page">
@@ -84,6 +115,33 @@ export function MainPage({
               projectExists={projectExists}
               value={collection}
               onChange={setCollection}
+            />
+          </div>
+        </div>
+
+        <div
+          className={
+            destinationReady
+              ? "workflow-card"
+              : "workflow-card workflow-card-disabled"
+          }
+        >
+          <div className="workflow-card-header">
+            <h2>Select source files</h2>
+
+            <p>
+              {destinationReady
+                ? "Choose local files or folders to process."
+                : "Complete the destination before selecting source files."}
+            </p>
+          </div>
+
+          <div className="workflow-card-content">
+            <SourceWorkspace
+              nodes={sourceNodes}
+              rootPaths={sourceRootPaths}
+              onChange={handleSourcesChange}
+              disabled={!destinationReady}
             />
           </div>
         </div>

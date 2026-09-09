@@ -546,3 +546,179 @@ button {
 .destination-new {
   color: var(--bam-blue-darker);
 }
+
+/* Source workspace */
+
+.source-workspace {
+  width: 100%;
+}
+
+.source-actions {
+  display: flex;
+  flex-wrap: wrap;
+
+  gap: 0.6rem;
+
+  margin-bottom: 1rem;
+}
+
+.source-actions button {
+  padding: 0.55rem 0.85rem;
+
+  border: 1px solid var(--primary);
+  border-radius: 6px;
+
+  background: transparent;
+  color: var(--primary);
+
+  font-family: var(--font-title);
+
+  transition:
+    background-color 0.15s ease,
+    color 0.15s ease,
+    border-color 0.15s ease;
+}
+
+.source-actions button:hover:not(:disabled) {
+  background: var(--primary);
+  color: #ffffff;
+}
+
+.source-actions button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.source-actions .source-clear-button {
+  border-color: var(--bam-red-dark);
+  color: var(--bam-red-dark);
+}
+
+.source-actions .source-clear-button:hover:not(:disabled) {
+  background: var(--bam-red-dark);
+  border-color: var(--bam-red-dark);
+  color: #ffffff;
+}
+
+
+.source-drop-area {
+  position: relative;
+
+  min-height: 180px;
+
+  overflow: auto;
+
+  padding: 0.75rem;
+
+  border: 1px solid var(--border);
+  border-radius: 8px;
+
+  background: var(--surface-muted);
+}
+
+
+.source-placeholder {
+  min-height: 150px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  margin: 0;
+
+  text-align: center;
+  color: var(--text-secondary);
+}
+
+
+.source-drop-overlay {
+  position: absolute;
+
+  inset: 0;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  border: 2px dashed var(--primary);
+  border-radius: 8px;
+
+  background: rgba(255, 255, 255, 0.92);
+
+  color: var(--primary);
+
+  font-family: var(--font-title);
+  font-size: 1.05rem;
+}
+
+
+.source-tree {
+  min-width: max-content;
+
+  font-size: 0.95rem;
+}
+
+
+.source-tree-row {
+  min-height: 1.8rem;
+
+  display: flex;
+  align-items: center;
+
+  white-space: nowrap;
+}
+
+
+.source-tree-row:hover {
+  background: rgba(0, 137, 186, 0.07);
+}
+
+
+.source-tree-toggle {
+  width: 1.5rem;
+  height: 1.5rem;
+
+  padding: 0;
+
+  border: 0;
+
+  background: transparent;
+  color: var(--text-secondary);
+
+  cursor: pointer;
+}
+
+
+.source-tree-spacer {
+  display: inline-block;
+
+  width: 1.5rem;
+}
+
+
+.source-tree-directory {
+  font-family: var(--font-title);
+  color: var(--text-primary);
+}
+
+
+.source-tree-file {
+  color: var(--text-secondary);
+}
+
+
+.source-error {
+  margin: 0.6rem 0 0;
+
+  color: var(--error);
+
+  font-size: 0.92rem;
+}
+
+.workflow-card-disabled {
+  opacity: 0.6;
+}
+
+.workflow-card-disabled .workflow-card-content {
+  pointer-events: none;
+}
