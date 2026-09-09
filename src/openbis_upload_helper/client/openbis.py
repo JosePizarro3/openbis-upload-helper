@@ -1,5 +1,5 @@
 from pybis import Openbis
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class LoginRequest(BaseModel):
@@ -12,6 +12,23 @@ class LoginRequest(BaseModel):
 class LoginResult(BaseModel):
     success: bool
     username: str | None = None
+    token: str | None = None
+    error: str | None = None
+
+
+class AuthRequest(BaseModel):
+    server_url: str
+    token: str
+
+
+class Space(BaseModel):
+    code: str
+    description: str | None = None
+
+
+class SpacesResult(BaseModel):
+    success: bool
+    spaces: list[Space] = Field(default_factory=list)
     error: str | None = None
 
 
@@ -26,9 +43,14 @@ def login(request: LoginRequest) -> LoginResult:
                 save_token=False,
             )
 
+            # set_token() assigns the token locally. Make an authenticated
+            # request to verify that the provided PAT is actually valid.
+            openbis.get_spaces()
+
             return LoginResult(
                 success=True,
                 username=request.username or None,
+                token=openbis.token,
             )
 
         if not request.username or not request.password:
@@ -46,10 +68,34 @@ def login(request: LoginRequest) -> LoginResult:
         return LoginResult(
             success=True,
             username=request.username,
+            token=openbis.token,
         )
 
     except Exception:
         return LoginResult(
             success=False,
             error="Invalid username/password or personal access token.",
+        )
+
+
+def get_spaces(request: AuthRequest) -> SpacesResult:
+    try:
+        openbis = Openbis(request.server_url)
+
+        openbis.set_token(
+            request.token,
+            save_token=False,
+        )
+
+        spaces = [Space(code=space.code) for space in openbis.get_spaces()]
+
+        return SpacesResult(
+            success=True,
+            spaces=spaces,
+        )
+
+    except Exception:
+        return SpacesResult(
+            success=False,
+            error="Could not retrieve spaces from openBIS.",
         )

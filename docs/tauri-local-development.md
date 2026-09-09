@@ -129,10 +129,11 @@ tauri  -> tauri
 
 ## 7. Install Python dependencies
 
-From the repository root:
+From the repository root, create a virtual environment:
 
 ```bash
-uv sync
+uv venv
+uv sync --all-extras
 ```
 
 This installs the Python project and its dependencies, including:
