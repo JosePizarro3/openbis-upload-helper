@@ -21,10 +21,42 @@ class AuthRequest(BaseModel):
     token: str
 
 
+class ProjectsRequest(AuthRequest):
+    space: str
+
+
+class CollectionsRequest(AuthRequest):
+    space: str
+    project: str
+
+
 class SpacesResult(BaseModel):
     success: bool
     spaces: list[str] = Field(default_factory=list)
     error: str | None = None
+
+
+class ProjectsResult(BaseModel):
+    success: bool
+    projects: list[str] = Field(default_factory=list)
+    error: str | None = None
+
+
+class CollectionsResult(BaseModel):
+    success: bool
+    collections: list[str] = Field(default_factory=list)
+    error: str | None = None
+
+
+def get_authenticated_openbis(request: AuthRequest) -> Openbis:
+    openbis = Openbis(request.server_url)
+
+    openbis.set_token(
+        request.token,
+        save_token=False,
+    )
+
+    return openbis
 
 
 def login(request: LoginRequest) -> LoginResult:
@@ -37,10 +69,6 @@ def login(request: LoginRequest) -> LoginResult:
                 request.personal_access_token,
                 save_token=False,
             )
-
-            # set_token() assigns the token locally. Make an authenticated
-            # request to verify that the provided PAT is actually valid.
-            openbis.get_spaces()
 
             return LoginResult(
                 success=True,
@@ -75,12 +103,7 @@ def login(request: LoginRequest) -> LoginResult:
 
 def get_spaces(request: AuthRequest) -> SpacesResult:
     try:
-        openbis = Openbis(request.server_url)
-
-        openbis.set_token(
-            request.token,
-            save_token=False,
-        )
+        openbis = get_authenticated_openbis(request)
 
         spaces = [space.code for space in openbis.get_spaces()]
 
@@ -93,4 +116,54 @@ def get_spaces(request: AuthRequest) -> SpacesResult:
         return SpacesResult(
             success=False,
             error=f"Could not retrieve spaces from openBIS: {exc}",
+        )
+
+
+def get_projects(request: ProjectsRequest) -> ProjectsResult:
+    try:
+        openbis = get_authenticated_openbis(request)
+
+        projects = [
+            project.code for project in openbis.get_projects(space=request.space)
+        ]
+
+        return ProjectsResult(
+            success=True,
+            projects=projects,
+        )
+
+    except Exception as exc:
+        return ProjectsResult(
+            success=False,
+            error=f"Could not retrieve projects from openBIS: {exc}",
+        )
+
+
+def get_collections(
+    request: CollectionsRequest,
+) -> CollectionsResult:
+    try:
+        openbis = get_authenticated_openbis(request)
+
+        projects = openbis.get_projects(space=request.space, code=request.project)
+
+        if not projects:
+            return CollectionsResult(
+                success=True,
+                collections=[],
+            )
+
+        project = projects[0]
+
+        collections = [collection.code for collection in project.get_collections()]
+
+        return CollectionsResult(
+            success=True,
+            collections=collections,
+        )
+
+    except Exception as exc:
+        return CollectionsResult(
+            success=False,
+            error=f"Could not retrieve collections from openBIS: {exc}",
         )

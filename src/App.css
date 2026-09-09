@@ -521,3 +521,28 @@ button {
 
   color: var(--text-secondary);
 }
+
+.destination-selector + .destination-selector {
+  margin-top: 1.25rem;
+}
+
+.optional-label {
+  font-family: var(--font-body);
+  font-weight: 400;
+  color: var(--text-secondary);
+}
+
+.destination-hint,
+.destination-new {
+  margin: 0.4rem 0 0;
+
+  font-size: 0.88rem;
+}
+
+.destination-hint {
+  color: var(--text-secondary);
+}
+
+.destination-new {
+  color: var(--bam-blue-darker);
+}

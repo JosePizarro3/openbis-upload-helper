@@ -1,24 +1,27 @@
 import {
   useEffect,
-  useMemo,
   useState,
 } from "react";
 
 import { getSpaces } from "./destination";
+import {
+  DestinationSelector,
+} from "./DestinationSelector";
 
 
 interface SpaceSelectorProps {
   value: string;
   onChange: (space: string) => void;
+  onExistsChange: (exists: boolean) => void;
 }
 
 
 export function SpaceSelector({
   value,
   onChange,
+  onExistsChange,
 }: SpaceSelectorProps) {
   const [spaces, setSpaces] = useState<string[]>([]);
-  const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -50,91 +53,34 @@ export function SpaceSelector({
     loadSpaces();
   }, []);
 
-  const filteredSpaces = useMemo(() => {
-    const query = value
-      .trim()
-      .toLowerCase();
+  useEffect(() => {
+    const normalized =
+      value.trim().toLowerCase();
 
-    if (!query) {
-      return spaces;
-    }
+    const exists =
+      normalized.length > 0 &&
+      spaces.some(
+        (space) =>
+          space.toLowerCase() === normalized,
+      );
 
-    return spaces.filter((space) =>
-      space.toLowerCase().includes(query),
-    );
-  }, [spaces, value]);
-
-  function selectSpace(space: string) {
-    onChange(space);
-    setOpen(false);
-  }
+    onExistsChange(exists);
+  }, [
+    spaces,
+    value,
+    onExistsChange,
+  ]);
 
   return (
-    <div className="space-selector">
-      <label htmlFor="space">
-        Space
-      </label>
-
-      <div className="combobox">
-        <input
-          id="space"
-          type="text"
-          value={value}
-          autoComplete="off"
-          disabled={loading}
-          placeholder={
-            loading
-              ? "Loading spaces..."
-              : "Type or select a space"
-          }
-          onFocus={() => setOpen(true)}
-          onChange={(event) => {
-            onChange(event.currentTarget.value);
-            setOpen(true);
-          }}
-        />
-
-        <button
-          type="button"
-          className="combobox-toggle"
-          aria-label="Show available spaces"
-          disabled={loading}
-          onClick={() => {
-            setOpen((current) => !current);
-          }}
-        >
-          ▾
-        </button>
-
-        {open && !loading && (
-          <div className="combobox-options">
-            {filteredSpaces.length > 0 ? (
-              filteredSpaces.map((space) => (
-                <button
-                  key={space}
-                  type="button"
-                  className="combobox-option"
-                  onClick={() => {
-                    selectSpace(space);
-                  }}
-                >
-                  {space}
-                </button>
-              ))
-            ) : (
-              <div className="combobox-empty">
-                No matching spaces
-              </div>
-            )}
-          </div>
-        )}
-      </div>
-
-      {error && (
-        <p className="destination-error">
-          {error}
-        </p>
-      )}
-    </div>
+    <DestinationSelector
+      id="space"
+      label="Space"
+      value={value}
+      options={spaces}
+      placeholder="Type or select a space"
+      loading={loading}
+      error={error}
+      onChange={onChange}
+    />
   );
 }

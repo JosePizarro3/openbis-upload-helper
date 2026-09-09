@@ -1,6 +1,12 @@
 import { useState } from "react";
 
 import {
+  CollectionSelector,
+} from "../features/destination/CollectionSelector";
+import {
+  ProjectSelector,
+} from "../features/destination/ProjectSelector";
+import {
   SpaceSelector,
 } from "../features/destination/SpaceSelector";
 
@@ -14,6 +20,27 @@ export function MainPage({
   onLogout,
 }: MainPageProps) {
   const [space, setSpace] = useState("");
+  const [spaceExists, setSpaceExists] = useState(false);
+
+  const [project, setProject] = useState("");
+  const [projectExists, setProjectExists] = useState(false);
+
+  const [collection, setCollection] = useState("");
+
+  function handleSpaceChange(value: string) {
+    setSpace(value);
+
+    setProject("");
+    setProjectExists(false);
+
+    setCollection("");
+  }
+
+  function handleProjectChange(value: string) {
+    setProject(value);
+
+    setCollection("");
+  }
 
   return (
     <main className="main-page">
@@ -39,7 +66,24 @@ export function MainPage({
           <div className="workflow-card-content">
             <SpaceSelector
               value={space}
-              onChange={setSpace}
+              onChange={handleSpaceChange}
+              onExistsChange={setSpaceExists}
+            />
+
+            <ProjectSelector
+              space={space}
+              spaceExists={spaceExists}
+              value={project}
+              onChange={handleProjectChange}
+              onExistsChange={setProjectExists}
+            />
+
+            <CollectionSelector
+              space={space}
+              project={project}
+              projectExists={projectExists}
+              value={collection}
+              onChange={setCollection}
             />
           </div>
         </div>

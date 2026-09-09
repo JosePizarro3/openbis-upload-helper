@@ -59,6 +59,39 @@ struct SpacesResult {
 }
 
 
+#[derive(Debug, Serialize)]
+struct ProjectsRequest {
+    server_url: String,
+    token: String,
+    space: String,
+}
+
+
+#[derive(Debug, Deserialize, Serialize)]
+struct ProjectsResult {
+    success: bool,
+    projects: Vec<String>,
+    error: Option<String>,
+}
+
+
+#[derive(Debug, Serialize)]
+struct CollectionsRequest {
+    server_url: String,
+    token: String,
+    space: String,
+    project: String,
+}
+
+
+#[derive(Debug, Deserialize, Serialize)]
+struct CollectionsResult {
+    success: bool,
+    collections: Vec<String>,
+    error: Option<String>,
+}
+
+
 fn run_python_command(
     command: &str,
     payload: &str,
@@ -198,6 +231,88 @@ fn get_spaces(
 }
 
 
+#[tauri::command]
+fn get_projects(
+    state: tauri::State<AppState>,
+    space: String,
+) -> Result<ProjectsResult, String> {
+    let auth = {
+        let stored_auth = state
+            .auth
+            .lock()
+            .map_err(|_| {
+                "Failed to access authentication state."
+            })?;
+
+        stored_auth
+            .clone()
+            .ok_or("Not authenticated.")?
+    };
+
+    let request = ProjectsRequest {
+        server_url: auth.server_url,
+        token: auth.token,
+        space,
+    };
+
+    let payload =
+        serde_json::to_string(&request)
+            .map_err(|error| error.to_string())?;
+
+    let output =
+        run_python_command("projects", &payload)?;
+
+    serde_json::from_slice::<ProjectsResult>(&output)
+        .map_err(|error| {
+            format!(
+                "Invalid response from Python backend: {error}"
+            )
+        })
+}
+
+
+#[tauri::command]
+fn get_collections(
+    state: tauri::State<AppState>,
+    space: String,
+    project: String,
+) -> Result<CollectionsResult, String> {
+    let auth = {
+        let stored_auth = state
+            .auth
+            .lock()
+            .map_err(|_| {
+                "Failed to access authentication state."
+            })?;
+
+        stored_auth
+            .clone()
+            .ok_or("Not authenticated.")?
+    };
+
+    let request = CollectionsRequest {
+        server_url: auth.server_url,
+        token: auth.token,
+        space,
+        project,
+    };
+
+    let payload =
+        serde_json::to_string(&request)
+            .map_err(|error| error.to_string())?;
+
+    let output =
+        run_python_command("collections", &payload)?;
+
+    serde_json::from_slice::<CollectionsResult>(&output)
+        .map_err(|error| {
+            format!(
+                "Invalid response from Python backend: {error}"
+            )
+        })
+}
+
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -209,6 +324,8 @@ pub fn run() {
             tauri::generate_handler![
                 login,
                 get_spaces,
+                get_projects,
+                get_collections,
             ],
         )
         .run(tauri::generate_context!())
