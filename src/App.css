@@ -918,3 +918,54 @@ button {
 .parser-assignment-unassigned {
   color: var(--error);
 }
+
+/* Processing plan summary */
+
+.processing-plan-summary {
+  margin-top: 1rem;
+
+  padding: 0.85rem 1rem;
+
+  border: 1px solid var(--border);
+  border-radius: 8px;
+
+  background: var(--surface-muted);
+}
+
+
+.processing-plan-counts {
+  display: flex;
+  flex-wrap: wrap;
+
+  gap: 0.5rem 1.25rem;
+
+  font-size: 0.9rem;
+
+  color: var(--text-secondary);
+}
+
+
+.processing-plan-counts strong {
+  font-family: var(--font-title);
+
+  color: var(--text-primary);
+}
+
+
+.processing-plan-status {
+  margin: 0.6rem 0 0;
+
+  font-family: var(--font-title);
+}
+
+
+.processing-plan-ready
+.processing-plan-status {
+  color: var(--bam-blue-darker);
+}
+
+
+.processing-plan-incomplete
+.processing-plan-status {
+  color: var(--error);
+}

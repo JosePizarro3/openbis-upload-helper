@@ -1,5 +1,6 @@
 import {
   useEffect,
+  useMemo,
   useState,
 } from "react";
 
@@ -12,7 +13,7 @@ import {
 } from "./parser";
 
 import type {
-  ParserAssignment,
+  ParserAssignment as ParserAssignmentValue,
   ParserAssignments,
   ParserInfo,
 } from "./parser";
@@ -20,6 +21,14 @@ import type {
 import {
   ParserAssignmentTree,
 } from "./ParserAssignmentTree";
+
+import {
+  buildProcessingPlan,
+} from "./processingPlan";
+
+import {
+  ProcessingPlanSummary,
+} from "./ProcessingPlanSummary";
 
 
 interface ParserAssignmentProps {
@@ -107,10 +116,6 @@ export function ParserAssignment({
   }, []);
 
 
-  /*
-   * Remove assignments whose filesystem nodes
-   * disappeared after a source Refresh/Clear.
-   */
   useEffect(() => {
     const sourcePaths =
       collectSourcePaths(nodes);
@@ -136,10 +141,24 @@ export function ParserAssignment({
   ]);
 
 
+  const processingPlan =
+    useMemo(
+      () =>
+        buildProcessingPlan(
+          nodes,
+          assignments,
+        ),
+      [
+        nodes,
+        assignments,
+      ],
+    );
+
+
   function handleAssignmentChange(
     path: string,
     assignment:
-      | ParserAssignment
+      | ParserAssignmentValue
       | undefined,
   ) {
     const next = {
@@ -205,6 +224,10 @@ export function ParserAssignment({
         onAssignmentChange={
           handleAssignmentChange
         }
+      />
+
+      <ProcessingPlanSummary
+        plan={processingPlan}
       />
     </div>
   );
