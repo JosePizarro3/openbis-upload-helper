@@ -11,11 +11,6 @@ export interface SourceNode {
   path: string;
   kind: SourceNodeKind;
   children: SourceNode[];
-
-//   parser?: string;
-//   parserInherited?: boolean;
-
-//   status?: "pending" | "parsed" | "error";
 }
 
 

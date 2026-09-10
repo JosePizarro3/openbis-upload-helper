@@ -11,6 +11,9 @@ from openbis_upload_helper.client.openbis import (
     get_spaces,
     login,
 )
+from openbis_upload_helper.parsers.registry import (
+    list_parsers,
+)
 
 
 def read_payload(input_file: str | None) -> str:
@@ -39,6 +42,7 @@ def main() -> None:
     subparsers.add_parser("spaces")
     subparsers.add_parser("projects")
     subparsers.add_parser("collections")
+    subparsers.add_parser("parsers")
 
     args = parser.parse_args()
 
@@ -91,6 +95,12 @@ def main() -> None:
 
         request = CollectionsRequest.model_validate_json(payload)
         result = get_collections(request)
+
+        print(result.model_dump_json())
+        return
+
+    if args.command == "parsers":
+        result = list_parsers()
 
         print(result.model_dump_json())
         return

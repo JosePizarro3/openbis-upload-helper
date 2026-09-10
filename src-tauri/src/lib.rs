@@ -83,6 +83,23 @@ struct CollectionsResult {
     error: Option<String>,
 }
 
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct ParserInfo {
+    id: String,
+    name: String,
+    description: String,
+    version: Option<String>,
+}
+
+
+#[derive(Debug, Deserialize, Serialize)]
+struct ParsersResult {
+    success: bool,
+    parsers: Vec<ParserInfo>,
+    error: Option<String>,
+}
+
 fn run_python_command(command: &str, payload: &str) -> Result<Vec<u8>, String> {
     let mut child = Command::new("uv") // Development only; Replace this with the bundled Python sidecar later.
         .args(["run", "openbis-upload-helper", command])
@@ -228,6 +245,22 @@ fn get_collections(
         .map_err(|error| format!("Invalid response from Python backend: {error}"))
 }
 
+#[tauri::command]
+fn get_parsers() -> Result<ParsersResult, String> {
+    let output =
+        run_python_command(
+            "parsers",
+            "",
+        )?;
+
+    serde_json::from_slice::<ParsersResult>(&output)
+        .map_err(|error| {
+            format!(
+                "Invalid response from Python backend: {error}"
+            )
+        })
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -242,6 +275,7 @@ pub fn run() {
             get_spaces,
             get_projects,
             get_collections,
+            get_parsers,
             source::scan_sources,
         ])
         .run(tauri::generate_context!())
