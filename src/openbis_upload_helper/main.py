@@ -14,6 +14,10 @@ from openbis_upload_helper.client.openbis import (
 from openbis_upload_helper.parsers.registry import (
     list_parsers,
 )
+from openbis_upload_helper.parsers.runner import (
+    ProcessRequest,
+    run_parsers,
+)
 
 
 def read_payload(input_file: str | None) -> str:
@@ -43,6 +47,7 @@ def main() -> None:
     subparsers.add_parser("projects")
     subparsers.add_parser("collections")
     subparsers.add_parser("parsers")
+    subparsers.add_parser("process")
 
     args = parser.parse_args()
 
@@ -101,6 +106,16 @@ def main() -> None:
 
     if args.command == "parsers":
         result = list_parsers()
+
+        print(result.model_dump_json())
+        return
+
+    if args.command == "process":
+        payload = read_payload(args.input_file)
+
+        request = ProcessRequest.model_validate_json(payload)
+
+        result = run_parsers(request)
 
         print(result.model_dump_json())
         return

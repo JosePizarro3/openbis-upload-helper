@@ -1,6 +1,5 @@
 import {
   useEffect,
-  useMemo,
   useState,
 } from "react";
 
@@ -22,8 +21,8 @@ import {
   ParserAssignmentTree,
 } from "./ParserAssignmentTree";
 
-import {
-  buildProcessingPlan,
+import type {
+  ProcessingPlan,
 } from "./processingPlan";
 
 import {
@@ -35,6 +34,8 @@ interface ParserAssignmentProps {
   nodes: SourceNode[];
 
   assignments: ParserAssignments;
+
+  processingPlan: ProcessingPlan;
 
   onAssignmentsChange: (
     assignments: ParserAssignments,
@@ -68,6 +69,7 @@ function collectSourcePaths(
 export function ParserAssignment({
   nodes,
   assignments,
+  processingPlan,
   onAssignmentsChange,
 }: ParserAssignmentProps) {
   const [parsers, setParsers] =
@@ -139,20 +141,6 @@ export function ParserAssignment({
     assignments,
     onAssignmentsChange,
   ]);
-
-
-  const processingPlan =
-    useMemo(
-      () =>
-        buildProcessingPlan(
-          nodes,
-          assignments,
-        ),
-      [
-        nodes,
-        assignments,
-      ],
-    );
 
 
   function handleAssignmentChange(

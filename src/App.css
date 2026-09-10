@@ -969,3 +969,87 @@ button {
 .processing-plan-status {
   color: var(--error);
 }
+
+/* Processing review */
+
+.processing-review {
+  width: 100%;
+}
+
+
+.processing-review-details {
+  display: flex;
+  flex-wrap: wrap;
+
+  gap: 1rem 2rem;
+
+  margin-bottom: 1rem;
+}
+
+
+.processing-review-details > div {
+  display: flex;
+  flex-direction: column;
+
+  gap: 0.2rem;
+}
+
+
+.processing-review-label {
+  font-size: 0.82rem;
+
+  color: var(--text-secondary);
+}
+
+
+.processing-review-warning {
+  margin: 1rem 0;
+
+  font-size: 0.9rem;
+
+  color: var(--text-secondary);
+}
+
+
+.processing-start-button {
+  padding: 0.65rem 1rem;
+
+  border: 1px solid var(--bam-blue-dark);
+  border-radius: 6px;
+
+  background: var(--bam-blue-dark);
+  color: white;
+
+  font-family: var(--font-title);
+
+  cursor: pointer;
+}
+
+
+.processing-start-button:hover:not(:disabled) {
+  background:
+    var(--bam-blue-darker);
+
+  border-color:
+    var(--bam-blue-darker);
+}
+
+
+.processing-start-button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+
+.processing-success {
+  margin: 1rem 0 0;
+
+  color: var(--bam-blue-darker);
+}
+
+
+.processing-error {
+  margin: 1rem 0 0;
+
+  color: var(--error);
+}

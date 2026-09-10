@@ -45,6 +45,7 @@ struct AuthState {
 
 struct AppState {
     auth: Mutex<Option<AuthState>>,
+    processing: Mutex<bool>,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -97,6 +98,43 @@ struct ParserInfo {
 struct ParsersResult {
     success: bool,
     parsers: Vec<ParserInfo>,
+    error: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct ProcessingJob {
+    parser_id: String,
+    assignment_path: String,
+    paths: Vec<String>,
+}
+
+
+#[derive(Debug, Serialize)]
+struct PythonProcessingJob {
+    parser_id: String,
+    assignment_path: String,
+    paths: Vec<String>,
+}
+
+
+#[derive(Debug, Serialize)]
+struct PythonProcessRequest {
+    server_url: String,
+    token: String,
+    space: String,
+    project: String,
+    collection: String,
+    jobs: Vec<PythonProcessingJob>,
+}
+
+
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct ProcessResult {
+    success: bool,
+    processed_files: usize,
+    jobs: usize,
     error: Option<String>,
 }
 
@@ -261,12 +299,104 @@ fn get_parsers() -> Result<ParsersResult, String> {
         })
 }
 
+#[tauri::command]
+fn process_sources(
+    state: tauri::State<AppState>,
+    space: String,
+    project: String,
+    collection: String,
+    jobs: Vec<ProcessingJob>,
+) -> Result<ProcessResult, String> {
+    {
+        let mut processing = state
+            .processing
+            .lock()
+            .map_err(|_| "Failed to access processing state.")?;
+
+        if *processing {
+            return Err(
+                "A processing operation is already running."
+                    .to_string(),
+            );
+        }
+
+        *processing = true;
+    }
+
+
+    let auth = {
+        let stored_auth = state
+            .auth
+            .lock()
+            .map_err(|_| "Failed to access authentication state.")?;
+
+        stored_auth
+            .clone()
+            .ok_or("Not authenticated.")?
+    };
+
+
+    let python_jobs = jobs
+        .into_iter()
+        .map(|job| PythonProcessingJob {
+            parser_id: job.parser_id,
+            assignment_path: job.assignment_path,
+            paths: job.paths,
+        })
+        .collect();
+
+
+    let request = PythonProcessRequest {
+        server_url: auth.server_url,
+        token: auth.token,
+        space,
+        project,
+        collection,
+        jobs: python_jobs,
+    };
+
+
+    let result = (|| {
+        let payload =
+            serde_json::to_string(&request)
+                .map_err(|error| error.to_string())?;
+
+        let output =
+            run_python_command(
+                "process",
+                &payload,
+            )?;
+
+        serde_json::from_slice::<ProcessResult>(
+            &output,
+        )
+        .map_err(|error| {
+            format!(
+                "Invalid response from Python backend: {error}"
+            )
+        })
+    })();
+
+
+    {
+        let mut processing = state
+            .processing
+            .lock()
+            .map_err(|_| "Failed to access processing state.")?;
+
+        *processing = false;
+    }
+
+
+    result
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
-        .plugin(tauri_plugin_dialog::init())
         .manage(AppState {
             auth: Mutex::new(None),
+            processing: Mutex::new(false),
         })
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
@@ -276,6 +406,7 @@ pub fn run() {
             get_projects,
             get_collections,
             get_parsers,
+            process_sources,
             source::scan_sources,
         ])
         .run(tauri::generate_context!())

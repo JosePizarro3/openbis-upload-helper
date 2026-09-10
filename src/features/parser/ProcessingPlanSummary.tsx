@@ -5,6 +5,7 @@ import type {
 import {
   countAssignedFiles,
   countParserJobs,
+  countParsers,
   processingPlanReady,
 } from "./processingPlan";
 
@@ -23,8 +24,12 @@ export function ProcessingPlanSummary({
   const parserJobs =
     countParserJobs(plan);
 
+  const parserCount =
+    countParsers(plan);
+
   const ready =
     processingPlanReady(plan);
+
 
   return (
     <div
@@ -60,8 +65,16 @@ export function ProcessingPlanSummary({
           <strong>
             {parserJobs}
           </strong>{" "}
-          parser
+          job
           {parserJobs === 1 ? "" : "s"}
+        </span>
+
+        <span>
+          <strong>
+            {parserCount}
+          </strong>{" "}
+          parser
+          {parserCount === 1 ? "" : "s"}
         </span>
       </div>
 

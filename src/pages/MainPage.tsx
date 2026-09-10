@@ -1,4 +1,5 @@
 import {
+  useMemo,
   useState,
 } from "react";
 
@@ -21,6 +22,15 @@ import {
 import type {
   ParserAssignments,
 } from "../features/parser/parser";
+
+import {
+  buildProcessingPlan,
+  processingPlanReady,
+} from "../features/parser/processingPlan";
+
+import {
+  ProcessingReview,
+} from "../features/processing/ProcessingReview";
 
 import {
   SourceWorkspace,
@@ -84,6 +94,27 @@ export function MainPage({
 
   const sourcesReady =
     sourceNodes.length > 0;
+
+
+  const processingPlan =
+    useMemo(
+      () =>
+        buildProcessingPlan(
+          sourceNodes,
+          parserAssignments,
+        ),
+      [
+        sourceNodes,
+        parserAssignments,
+      ],
+    );
+
+
+  const processingReady =
+    sourcesReady &&
+    processingPlanReady(
+      processingPlan,
+    );
 
 
   function handleSpaceChange(
@@ -246,8 +277,47 @@ export function MainPage({
                 assignments={
                   parserAssignments
                 }
+                processingPlan={
+                  processingPlan
+                }
                 onAssignmentsChange={
                   setParserAssignments
+                }
+              />
+            )}
+          </div>
+        </div>
+
+
+        <div
+          className={
+            processingReady
+              ? "workflow-card"
+              : "workflow-card workflow-card-disabled"
+          }
+        >
+          <div className="workflow-card-header">
+            <h2>
+              Review & process
+            </h2>
+
+            <p>
+              {processingReady
+                ? "Review the processing plan before writing data to openBIS."
+                : "Complete the parser assignments before processing."}
+            </p>
+          </div>
+
+          <div className="workflow-card-content">
+            {processingReady && (
+              <ProcessingReview
+                space={space}
+                project={project}
+                collection={
+                  collection
+                }
+                plan={
+                  processingPlan
                 }
               />
             )}

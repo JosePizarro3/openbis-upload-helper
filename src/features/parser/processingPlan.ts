@@ -8,45 +8,108 @@ import type {
 } from "./parser";
 
 
+export interface ProcessingJob {
+  parserId: string;
+
+  /*
+   * Node on which this parser was explicitly assigned.
+   *
+   * This preserves assignment boundaries:
+   *
+   * run1/ -> Parser A
+   * run2/ -> Parser A
+   *
+   * becomes two jobs, even though both use Parser A.
+   */
+  assignmentPath: string;
+
+  paths: string[];
+}
+
+
 export interface ProcessingPlan {
-  parserPaths: Record<string, string[]>;
+  jobs: ProcessingJob[];
+
   ignoredPaths: string[];
+
   unassignedPaths: string[];
 }
 
 
-function addParserPath(
-  parserPaths: Record<string, string[]>,
-  parserId: string,
-  path: string,
-) {
-  if (!parserPaths[parserId]) {
-    parserPaths[parserId] = [];
-  }
+interface ResolutionContext {
+  assignment?: ParserAssignment;
+  jobIndex?: number;
+}
 
-  parserPaths[parserId].push(path);
+
+function createParserJob(
+  plan: ProcessingPlan,
+  parserId: string,
+  assignmentPath: string,
+): number {
+  plan.jobs.push({
+    parserId,
+    assignmentPath,
+    paths: [],
+  });
+
+  return plan.jobs.length - 1;
 }
 
 
 function resolveNode(
   node: SourceNode,
   assignments: ParserAssignments,
-  inheritedAssignment: ParserAssignment | undefined,
+  inheritedContext: ResolutionContext,
   plan: ProcessingPlan,
 ) {
   const explicitAssignment =
     assignments[node.path];
 
-  const effectiveAssignment =
-    explicitAssignment ??
-    inheritedAssignment;
+  let context: ResolutionContext =
+    inheritedContext;
+
 
   /*
-   * Ignore applies to the complete subtree unless
-   * a descendant explicitly overrides it.
+   * An explicit assignment starts a new processing
+   * context.
+   *
+   * Even if the same parser is already inherited,
+   * explicitly assigning it here creates a separate
+   * parser job.
    */
+  if (explicitAssignment) {
+    if (
+      explicitAssignment.type === "parser"
+    ) {
+      const jobIndex =
+        createParserJob(
+          plan,
+          explicitAssignment.parserId,
+          node.path,
+        );
+
+      context = {
+        assignment:
+          explicitAssignment,
+        jobIndex,
+      };
+    } else {
+      /*
+       * Ignore stops inheritance for this subtree.
+       * A descendant can still explicitly assign a
+       * parser and start a new job.
+       */
+      context = {
+        assignment:
+          explicitAssignment,
+      };
+    }
+  }
+
+
   if (node.kind === "file") {
-    if (!effectiveAssignment) {
+    if (!context.assignment) {
       plan.unassignedPaths.push(
         node.path,
       );
@@ -55,7 +118,7 @@ function resolveNode(
     }
 
     if (
-      effectiveAssignment.type === "ignore"
+      context.assignment.type === "ignore"
     ) {
       plan.ignoredPaths.push(
         node.path,
@@ -64,20 +127,33 @@ function resolveNode(
       return;
     }
 
-    addParserPath(
-      plan.parserPaths,
-      effectiveAssignment.parserId,
-      node.path,
-    );
+    if (
+      context.jobIndex === undefined
+    ) {
+      /*
+       * Defensive check. A parser assignment should
+       * always correspond to a processing job.
+       */
+      plan.unassignedPaths.push(
+        node.path,
+      );
+
+      return;
+    }
+
+    plan.jobs[
+      context.jobIndex
+    ].paths.push(node.path);
 
     return;
   }
+
 
   for (const child of node.children) {
     resolveNode(
       child,
       assignments,
-      effectiveAssignment,
+      context,
       plan,
     );
   }
@@ -89,7 +165,7 @@ export function buildProcessingPlan(
   assignments: ParserAssignments,
 ): ProcessingPlan {
   const plan: ProcessingPlan = {
-    parserPaths: {},
+    jobs: [],
     ignoredPaths: [],
     unassignedPaths: [],
   };
@@ -98,10 +174,23 @@ export function buildProcessingPlan(
     resolveNode(
       node,
       assignments,
-      undefined,
+      {},
       plan,
     );
   }
+
+
+  /*
+   * An explicitly assigned empty directory may have
+   * produced a job with no files. It should not be sent
+   * to Python.
+   */
+  plan.jobs =
+    plan.jobs.filter(
+      (job) =>
+        job.paths.length > 0,
+    );
+
 
   return plan;
 }
@@ -110,11 +199,9 @@ export function buildProcessingPlan(
 export function countAssignedFiles(
   plan: ProcessingPlan,
 ): number {
-  return Object.values(
-    plan.parserPaths,
-  ).reduce(
-    (total, paths) =>
-      total + paths.length,
+  return plan.jobs.reduce(
+    (total, job) =>
+      total + job.paths.length,
     0,
   );
 }
@@ -123,9 +210,18 @@ export function countAssignedFiles(
 export function countParserJobs(
   plan: ProcessingPlan,
 ): number {
-  return Object.keys(
-    plan.parserPaths,
-  ).length;
+  return plan.jobs.length;
+}
+
+
+export function countParsers(
+  plan: ProcessingPlan,
+): number {
+  return new Set(
+    plan.jobs.map(
+      (job) => job.parserId,
+    ),
+  ).size;
 }
 
 
