@@ -1,4 +1,5 @@
 import argparse
+import json
 import sys
 
 from openbis_upload_helper.client.openbis import (
@@ -10,6 +11,9 @@ from openbis_upload_helper.client.openbis import (
     get_projects,
     get_spaces,
     login,
+)
+from openbis_upload_helper.parsers.processing_logger import (
+    create_processing_logger,
 )
 from openbis_upload_helper.parsers.registry import (
     list_parsers,
@@ -111,13 +115,39 @@ def main() -> None:
         return
 
     if args.command == "process":
-        payload = read_payload(args.input_file)
+        payload = read_payload(
+            args.input_file,
+        )
 
-        request = ProcessRequest.model_validate_json(payload)
+        request = ProcessRequest.model_validate_json(
+            payload,
+        )
 
-        result = run_parsers(request)
+        logger = create_processing_logger()
 
-        print(result.model_dump_json())
+        logger.info(
+            "Processing operation started.",
+            kind="stage",
+            stage="started",
+            files=sum(len(job.paths) for job in request.jobs),
+            jobs=len(request.jobs),
+        )
+
+        result = run_parsers(
+            request,
+            logger=logger,
+        )
+
+        print(
+            json.dumps(
+                {
+                    "kind": "result",
+                    "result": result.model_dump(),
+                },
+            ),
+            flush=True,
+        )
+
         return
 
 
