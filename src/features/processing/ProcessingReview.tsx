@@ -1,4 +1,6 @@
 import {
+  useEffect,
+  useRef,
   useState,
 } from "react";
 
@@ -12,10 +14,12 @@ import {
 } from "../parser/processingPlan";
 
 import {
+  listenToProcessingEvents,
   processSources,
 } from "./processing";
 
 import type {
+  ProcessingEvent,
   ProcessResult,
 } from "./processing";
 
@@ -26,6 +30,40 @@ interface ProcessingReviewProps {
   collection: string;
 
   plan: ProcessingPlan;
+}
+
+
+function formatTimestamp(
+  timestamp?: string | null,
+): string {
+  if (!timestamp) {
+    return "";
+  }
+
+  const date = new Date(timestamp);
+
+  if (Number.isNaN(date.getTime())) {
+    return timestamp;
+  }
+
+  return date.toLocaleTimeString(
+    [],
+    {
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+      hour12: false,
+    },
+  );
+}
+
+
+function normalizeLevel(
+  level: string,
+): string {
+  return level
+    .trim()
+    .toLowerCase();
 }
 
 
@@ -46,6 +84,15 @@ export function ProcessingReview({
   const [error, setError] =
     useState<string | null>(null);
 
+  const [events, setEvents] =
+    useState<ProcessingEvent[]>([]);
+
+  const [currentStage, setCurrentStage] =
+    useState<string | null>(null);
+
+  const logEndRef =
+    useRef<HTMLDivElement | null>(null);
+
 
   const ready =
     processingPlanReady(plan);
@@ -54,14 +101,83 @@ export function ProcessingReview({
     countAssignedFiles(plan);
 
 
+  /*
+   * Subscribe once to the processing events emitted
+   * by the Rust backend.
+   */
+  useEffect(() => {
+    let unlisten:
+      (() => void) | undefined;
+
+    let disposed = false;
+
+
+    listenToProcessingEvents(
+      (event) => {
+        if (disposed) {
+          return;
+        }
+
+        setEvents(
+          (current) => [
+            ...current,
+            event,
+          ],
+        );
+
+        if (
+          event.kind === "stage" &&
+          event.stage
+        ) {
+          setCurrentStage(
+            event.stage,
+          );
+        }
+      },
+    ).then(
+      (cleanup) => {
+        if (disposed) {
+          cleanup();
+          return;
+        }
+
+        unlisten = cleanup;
+      },
+    );
+
+
+    return () => {
+      disposed = true;
+      unlisten?.();
+    };
+  }, []);
+
+
+  /*
+   * Keep the newest processing message visible.
+   */
+  useEffect(() => {
+    logEndRef.current
+      ?.scrollIntoView({
+        behavior: "smooth",
+        block: "nearest",
+      });
+  }, [events]);
+
+
   async function process() {
     if (!ready || processing) {
       return;
     }
 
     setProcessing(true);
+
     setResult(null);
     setError(null);
+
+    setEvents([]);
+    setCurrentStage("starting");
+
 
     try {
       const response =
@@ -72,6 +188,7 @@ export function ProcessingReview({
           jobs: plan.jobs,
         });
 
+
       if (!response.success) {
         setError(
           response.error ??
@@ -80,6 +197,7 @@ export function ProcessingReview({
 
         return;
       }
+
 
       setResult(response);
     } catch (error) {
@@ -92,6 +210,30 @@ export function ProcessingReview({
       setProcessing(false);
     }
   }
+
+
+  const warningCount =
+    events.filter(
+      (event) =>
+        normalizeLevel(
+          event.level,
+        ) === "warning",
+    ).length;
+
+  const errorLogCount =
+    events.filter(
+      (event) => {
+        const level =
+          normalizeLevel(
+            event.level,
+          );
+
+        return (
+          level === "error" ||
+          level === "critical"
+        );
+      },
+    ).length;
 
 
   return (
@@ -110,6 +252,7 @@ export function ProcessingReview({
           </strong>
         </div>
 
+
         <div>
           <span className="processing-review-label">
             Files
@@ -119,6 +262,7 @@ export function ProcessingReview({
             {assignedFiles}
           </strong>
         </div>
+
 
         <div>
           <span className="processing-review-label">
@@ -153,9 +297,122 @@ export function ProcessingReview({
       </button>
 
 
+      {(processing ||
+        events.length > 0) && (
+        <div className="processing-monitor">
+          <div className="processing-monitor-header">
+            <div>
+              <strong>
+                Processing logs
+              </strong>
+
+              {processing && (
+                <span className="processing-running">
+                  Running
+                </span>
+              )}
+            </div>
+
+
+            {currentStage && (
+              <span className="processing-stage">
+                {currentStage}
+              </span>
+            )}
+          </div>
+
+
+          <div
+            className="processing-log"
+            role="log"
+            aria-live="polite"
+          >
+            {events.length === 0 ? (
+              <div className="processing-log-empty">
+                Waiting for processing output...
+              </div>
+            ) : (
+              events.map(
+                (event, index) => {
+                  const level =
+                    normalizeLevel(
+                      event.level,
+                    );
+
+                  return (
+                    <div
+                      key={index}
+                      className={
+                        `processing-log-entry processing-log-${level}`
+                      }
+                    >
+                      <span className="processing-log-time">
+                        {formatTimestamp(
+                          event.timestamp,
+                        )}
+                      </span>
+
+                      <span
+                        className={
+                          `processing-log-level processing-log-level-${level}`
+                        }
+                      >
+                        {level}
+                      </span>
+
+                      <span className="processing-log-message">
+                        {event.message}
+                      </span>
+                    </div>
+                  );
+                },
+              )
+            )}
+
+            <div ref={logEndRef} />
+          </div>
+
+
+          {(warningCount > 0 ||
+            errorLogCount > 0) && (
+            <div className="processing-log-summary">
+              {warningCount > 0 && (
+                <span className="processing-warning-count">
+                  {warningCount} warning
+                  {warningCount === 1
+                    ? ""
+                    : "s"}
+                </span>
+              )}
+
+              {errorLogCount > 0 && (
+                <span className="processing-error-count">
+                  {errorLogCount} error
+                  {errorLogCount === 1
+                    ? ""
+                    : "s"}
+                </span>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
+
       {result && (
-        <p className="processing-success">
-          Processing completed successfully.{" "}
+        <p
+          className={
+            warningCount > 0 ||
+            errorLogCount > 0
+              ? "processing-success-with-warnings"
+              : "processing-success"
+          }
+        >
+          {warningCount > 0 ||
+          errorLogCount > 0
+            ? "Processing completed with logged warnings or errors."
+            : "Processing completed successfully."}{" "}
+
           {result.processedFiles} file
           {result.processedFiles === 1
             ? ""

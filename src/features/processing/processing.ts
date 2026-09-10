@@ -2,6 +2,14 @@ import {
   invoke,
 } from "@tauri-apps/api/core";
 
+import {
+  listen,
+} from "@tauri-apps/api/event";
+
+import type {
+  UnlistenFn,
+} from "@tauri-apps/api/event";
+
 import type {
   ProcessingJob,
 } from "../parser/processingPlan";
@@ -24,6 +32,29 @@ export interface ProcessRequest {
 }
 
 
+export type ProcessingLogLevel =
+  | "debug"
+  | "info"
+  | "warning"
+  | "error"
+  | "critical";
+
+
+export interface ProcessingEvent {
+  kind: string;
+
+  level: ProcessingLogLevel | string;
+
+  message: string;
+
+  timestamp?: string | null;
+  stage?: string | null;
+
+  files?: number | null;
+  jobs?: number | null;
+}
+
+
 export async function processSources(
   request: ProcessRequest,
 ): Promise<ProcessResult> {
@@ -34,6 +65,20 @@ export async function processSources(
       project: request.project,
       collection: request.collection,
       jobs: request.jobs,
+    },
+  );
+}
+
+
+export async function listenToProcessingEvents(
+  onEvent: (
+    event: ProcessingEvent,
+  ) => void,
+): Promise<UnlistenFn> {
+  return listen<ProcessingEvent>(
+    "processing-event",
+    (event) => {
+      onEvent(event.payload);
     },
   );
 }
