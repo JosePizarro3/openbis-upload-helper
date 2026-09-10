@@ -3,6 +3,9 @@ import {
   useRef,
   useState,
 } from "react";
+import {
+  save as showSaveDialog,
+} from "@tauri-apps/plugin-dialog";
 
 import type {
   ProcessingPlan,
@@ -16,6 +19,7 @@ import {
 import {
   listenToProcessingEvents,
   processSources,
+  saveProcessingLogs,
 } from "./processing";
 
 import type {
@@ -64,6 +68,61 @@ function normalizeLevel(
   return level
     .trim()
     .toLowerCase();
+}
+
+
+async function exportLogs(
+  events: ProcessingEvent[],
+  space: string,
+  project: string,
+  collection: string,
+) {
+  const timestamp =
+    new Date()
+      .toISOString()
+      .replace(/:/g, "-");
+
+  const defaultFileName =
+    `openbis-processing-logs-${timestamp}.json`;
+
+  const path =
+    await showSaveDialog({
+      defaultPath: defaultFileName,
+
+      filters: [
+        {
+          name: "JSON",
+          extensions: ["json"],
+        },
+      ],
+    });
+
+  if (!path) {
+    return;
+  }
+
+  const data = {
+    exportedAt:
+      new Date().toISOString(),
+
+    destination: {
+      space,
+      project,
+      collection:
+        collection || null,
+    },
+
+    logs: events,
+  };
+
+  await saveProcessingLogs(
+    path,
+    JSON.stringify(
+      data,
+      null,
+      2,
+    ),
+  );
 }
 
 
@@ -302,23 +361,41 @@ export function ProcessingReview({
         <div className="processing-monitor">
           <div className="processing-monitor-header">
             <div>
-              <strong>
+                <strong>
                 Processing logs
-              </strong>
+                </strong>
 
-              {processing && (
+                {processing && (
                 <span className="processing-running">
-                  Running
+                    Running
                 </span>
-              )}
+                )}
             </div>
 
 
-            {currentStage && (
-              <span className="processing-stage">
-                {currentStage}
-              </span>
-            )}
+            <div className="processing-monitor-actions">
+                {currentStage && (
+                <span className="processing-stage">
+                    {currentStage}
+                </span>
+                )}
+
+                <button
+                type="button"
+                className="processing-export-button"
+                disabled={events.length === 0}
+                onClick={() => {
+                    void exportLogs(
+                    events,
+                    space,
+                    project,
+                    collection,
+                    );
+                }}
+                >
+                Export JSON
+                </button>
+            </div>
           </div>
 
 

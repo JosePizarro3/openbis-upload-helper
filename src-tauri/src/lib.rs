@@ -626,6 +626,22 @@ fn get_parsers() -> Result<ParsersResult, String> {
 }
 
 #[tauri::command]
+fn save_processing_logs(
+    path: String,
+    content: String,
+) -> Result<(), String> {
+    std::fs::write(
+        &path,
+        content,
+    )
+    .map_err(|error| {
+        format!(
+            "Failed to save processing logs to '{path}': {error}"
+        )
+    })
+}
+
+#[tauri::command]
 fn process_sources(
     app: tauri::AppHandle,
     state: tauri::State<AppState>,
@@ -765,6 +781,7 @@ pub fn run() {
             get_collections,
             get_parsers,
             process_sources,
+            save_processing_logs,
             source::scan_sources,
         ])
         .run(tauri::generate_context!())
