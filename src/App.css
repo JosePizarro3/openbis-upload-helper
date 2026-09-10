@@ -722,3 +722,199 @@ button {
 .workflow-card-disabled .workflow-card-content {
   pointer-events: none;
 }
+
+/* Parser assignment */
+
+.parser-assignment {
+  width: 100%;
+}
+
+
+.parser-assignment-help {
+  margin-bottom: 1rem;
+
+  color: var(--text-secondary);
+
+  font-size: 0.9rem;
+}
+
+.parser-assignment-help p {
+  margin: 0.25rem 0;
+}
+
+
+.parser-placeholder {
+  margin: 0;
+
+  padding: 1rem;
+
+  text-align: center;
+
+  color: var(--text-secondary);
+}
+
+
+.parser-error {
+  margin: 0;
+
+  color: var(--error);
+}
+
+
+.parser-tree {
+  width: 100%;
+
+  max-height: 420px;
+
+  overflow: auto;
+
+  border: 1px solid var(--border);
+  border-radius: 8px;
+
+  background: var(--surface-muted);
+}
+
+
+.parser-tree-row {
+  min-width: 620px;
+  min-height: 2.5rem;
+
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  gap: 1rem;
+
+  padding-top: 0.3rem;
+  padding-right: 0.6rem;
+  padding-bottom: 0.3rem;
+
+  border-bottom: 1px solid
+    rgba(0, 40, 50, 0.06);
+}
+
+
+.parser-tree-row:hover {
+  background:
+    rgba(0, 137, 186, 0.06);
+}
+
+
+.parser-tree-source {
+  min-width: 0;
+
+  display: flex;
+  align-items: center;
+
+  flex: 1;
+}
+
+
+.parser-tree-toggle {
+  width: 1.5rem;
+  height: 1.5rem;
+
+  flex: 0 0 1.5rem;
+
+  padding: 0;
+
+  border: 0;
+
+  background: transparent;
+
+  color: var(--text-secondary);
+
+  cursor: pointer;
+}
+
+
+.parser-tree-spacer {
+  width: 1.5rem;
+
+  flex: 0 0 1.5rem;
+}
+
+
+.parser-tree-directory {
+  overflow: hidden;
+
+  text-overflow: ellipsis;
+  white-space: nowrap;
+
+  font-family: var(--font-title);
+
+  color: var(--text-primary);
+}
+
+
+.parser-tree-file {
+  overflow: hidden;
+
+  text-overflow: ellipsis;
+  white-space: nowrap;
+
+  color: var(--text-secondary);
+}
+
+
+.parser-tree-assignment {
+  display: flex;
+  align-items: center;
+
+  gap: 0.6rem;
+
+  flex: 0 0 auto;
+}
+
+
+.parser-selector {
+  width: 220px;
+
+  padding: 0.45rem 0.55rem;
+
+  border: 1px solid var(--border);
+  border-radius: 6px;
+
+  background: var(--surface);
+
+  color: var(--text-primary);
+
+  font-family: var(--font-body);
+}
+
+
+.parser-selector:focus {
+  outline: 2px solid
+    rgba(0, 175, 240, 0.25);
+
+  border-color: var(--bam-blue);
+}
+
+
+.parser-assignment-state {
+  width: 150px;
+
+  overflow: hidden;
+
+  text-overflow: ellipsis;
+  white-space: nowrap;
+
+  font-size: 0.8rem;
+}
+
+
+.parser-assignment-explicit {
+  color: var(--bam-blue-darker);
+}
+
+
+.parser-assignment-inherited {
+  color: var(--text-secondary);
+
+  font-style: italic;
+}
+
+
+.parser-assignment-unassigned {
+  color: var(--error);
+}

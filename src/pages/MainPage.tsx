@@ -1,14 +1,26 @@
-import { useState } from "react";
+import {
+  useState,
+} from "react";
 
 import {
   CollectionSelector,
 } from "../features/destination/CollectionSelector";
+
 import {
   ProjectSelector,
 } from "../features/destination/ProjectSelector";
+
 import {
   SpaceSelector,
 } from "../features/destination/SpaceSelector";
+
+import {
+  ParserAssignment,
+} from "../features/parser/ParserAssignment";
+
+import type {
+  ParserAssignments,
+} from "../features/parser/parser";
 
 import {
   SourceWorkspace,
@@ -27,27 +39,56 @@ interface MainPageProps {
 export function MainPage({
   onLogout,
 }: MainPageProps) {
-  const [space, setSpace] = useState("");
-  const [spaceExists, setSpaceExists] = useState(false);
+  const [space, setSpace] =
+    useState("");
 
-  const [project, setProject] = useState("");
-  const [projectExists, setProjectExists] = useState(false);
+  const [
+    spaceExists,
+    setSpaceExists,
+  ] = useState(false);
 
-  const [collection, setCollection] = useState("");
 
-  const [sourceNodes, setSourceNodes] =
-    useState<SourceNode[]>([]);
+  const [project, setProject] =
+    useState("");
 
-  const [sourceRootPaths, setSourceRootPaths] =
-    useState<string[]>([]);
+  const [
+    projectExists,
+    setProjectExists,
+  ] = useState(false);
+
+
+  const [collection, setCollection] =
+    useState("");
+
+
+  const [
+    sourceNodes,
+    setSourceNodes,
+  ] = useState<SourceNode[]>([]);
+
+  const [
+    sourceRootPaths,
+    setSourceRootPaths,
+  ] = useState<string[]>([]);
+
+
+  const [
+    parserAssignments,
+    setParserAssignments,
+  ] = useState<ParserAssignments>({});
 
 
   const destinationReady =
     spaceExists &&
     project.trim().length > 0;
 
+  const sourcesReady =
+    sourceNodes.length > 0;
 
-  function handleSpaceChange(value: string) {
+
+  function handleSpaceChange(
+    value: string,
+  ) {
     setSpace(value);
 
     setProject("");
@@ -57,7 +98,9 @@ export function MainPage({
   }
 
 
-  function handleProjectChange(value: string) {
+  function handleProjectChange(
+    value: string,
+  ) {
     setProject(value);
 
     setCollection("");
@@ -76,48 +119,68 @@ export function MainPage({
   return (
     <main className="main-page">
       <header className="app-header">
-        <h1>openBIS Upload Helper</h1>
+        <h1>
+          openBIS Upload Helper
+        </h1>
 
         <button onClick={onLogout}>
           Log out
         </button>
       </header>
 
+
       <section className="main-content">
         <div className="workflow-card">
           <div className="workflow-card-header">
-            <h2>Select destination</h2>
+            <h2>
+              Select destination
+            </h2>
 
             <p>
-              Choose where the data should be stored
-              in openBIS.
+              Choose where the data should
+              be stored in openBIS.
             </p>
           </div>
 
           <div className="workflow-card-content">
             <SpaceSelector
               value={space}
-              onChange={handleSpaceChange}
-              onExistsChange={setSpaceExists}
+              onChange={
+                handleSpaceChange
+              }
+              onExistsChange={
+                setSpaceExists
+              }
             />
 
             <ProjectSelector
               space={space}
-              spaceExists={spaceExists}
+              spaceExists={
+                spaceExists
+              }
               value={project}
-              onChange={handleProjectChange}
-              onExistsChange={setProjectExists}
+              onChange={
+                handleProjectChange
+              }
+              onExistsChange={
+                setProjectExists
+              }
             />
 
             <CollectionSelector
               space={space}
               project={project}
-              projectExists={projectExists}
+              projectExists={
+                projectExists
+              }
               value={collection}
-              onChange={setCollection}
+              onChange={
+                setCollection
+              }
             />
           </div>
         </div>
+
 
         <div
           className={
@@ -127,7 +190,9 @@ export function MainPage({
           }
         >
           <div className="workflow-card-header">
-            <h2>Select source files</h2>
+            <h2>
+              Select source files
+            </h2>
 
             <p>
               {destinationReady
@@ -139,10 +204,53 @@ export function MainPage({
           <div className="workflow-card-content">
             <SourceWorkspace
               nodes={sourceNodes}
-              rootPaths={sourceRootPaths}
-              onChange={handleSourcesChange}
-              disabled={!destinationReady}
+              rootPaths={
+                sourceRootPaths
+              }
+              onChange={
+                handleSourcesChange
+              }
+              disabled={
+                !destinationReady
+              }
             />
+          </div>
+        </div>
+
+
+        <div
+          className={
+            sourcesReady
+              ? "workflow-card"
+              : "workflow-card workflow-card-disabled"
+          }
+        >
+          <div className="workflow-card-header">
+            <h2>
+              Assign parsers
+            </h2>
+
+            <p>
+              {sourcesReady
+                ? "Assign parsers to files or folders."
+                : "Select source files before assigning parsers."}
+            </p>
+          </div>
+
+          <div className="workflow-card-content">
+            {sourcesReady && (
+              <ParserAssignment
+                nodes={
+                  sourceNodes
+                }
+                assignments={
+                  parserAssignments
+                }
+                onAssignmentsChange={
+                  setParserAssignments
+                }
+              />
+            )}
           </div>
         </div>
       </section>

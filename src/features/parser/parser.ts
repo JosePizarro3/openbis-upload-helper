@@ -15,6 +15,30 @@ export interface ParsersResult {
   error?: string;
 }
 
+// Conceptually:
+//    {
+//    "/data/experiment/xrd": {
+//        type: "parser",
+//        parserId: "masterdata_parser_example_entry_point",
+//    },
+//
+//    "/data/experiment/xrd/README.txt": {
+//        type: "ignore",
+//    },
+//    }
+export type ParserAssignment =
+  | {
+      type: "parser";
+      parserId: string;
+    }
+  | {
+      type: "ignore";
+    };
+
+
+export type ParserAssignments =
+  Record<string, ParserAssignment>;
+
 
 export async function getParsers(): Promise<ParsersResult> {
   return invoke<ParsersResult>(
