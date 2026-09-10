@@ -129,7 +129,16 @@ struct PythonProcessRequest {
 }
 
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Deserialize)]
+struct PythonProcessResult {
+    success: bool,
+    processed_files: usize,
+    jobs: usize,
+    error: Option<String>,
+}
+
+
+#[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 struct ProcessResult {
     success: bool,
@@ -137,6 +146,7 @@ struct ProcessResult {
     jobs: usize,
     error: Option<String>,
 }
+
 
 fn run_python_command(command: &str, payload: &str) -> Result<Vec<u8>, String> {
     let mut child = Command::new("uv") // Development only; Replace this with the bundled Python sidecar later.
@@ -164,6 +174,34 @@ fn run_python_command(command: &str, payload: &str) -> Result<Vec<u8>, String> {
     }
 
     Ok(output.stdout)
+}
+
+fn parse_last_json_line<T>(
+    output: &[u8],
+) -> Result<T, String>
+where
+    T: for<'de> Deserialize<'de>,
+{
+    let stdout =
+        String::from_utf8_lossy(output);
+
+    let json_line = stdout
+        .lines()
+        .rev()
+        .find(|line| !line.trim().is_empty())
+        .ok_or(
+            "Python backend returned no output.",
+        )?;
+
+    serde_json::from_str::<T>(
+        json_line,
+    )
+    .map_err(|error| {
+        format!(
+            "Invalid response from Python backend: {error}. \
+             Last output line: {json_line}"
+        )
+    })
 }
 
 #[tauri::command]
@@ -311,7 +349,9 @@ fn process_sources(
         let mut processing = state
             .processing
             .lock()
-            .map_err(|_| "Failed to access processing state.")?;
+            .map_err(|_| {
+                "Failed to access processing state."
+            })?;
 
         if *processing {
             return Err(
@@ -324,42 +364,47 @@ fn process_sources(
     }
 
 
-    let auth = {
-        let stored_auth = state
-            .auth
-            .lock()
-            .map_err(|_| "Failed to access authentication state.")?;
-
-        stored_auth
-            .clone()
-            .ok_or("Not authenticated.")?
-    };
-
-
-    let python_jobs = jobs
-        .into_iter()
-        .map(|job| PythonProcessingJob {
-            parser_id: job.parser_id,
-            assignment_path: job.assignment_path,
-            paths: job.paths,
-        })
-        .collect();
-
-
-    let request = PythonProcessRequest {
-        server_url: auth.server_url,
-        token: auth.token,
-        space,
-        project,
-        collection,
-        jobs: python_jobs,
-    };
-
-
     let result = (|| {
+        let auth = {
+            let stored_auth = state
+                .auth
+                .lock()
+                .map_err(|_| {
+                    "Failed to access authentication state."
+                })?;
+
+            stored_auth
+                .clone()
+                .ok_or("Not authenticated.")?
+        };
+
+
+        let python_jobs = jobs
+            .into_iter()
+            .map(|job| PythonProcessingJob {
+                parser_id: job.parser_id,
+                assignment_path: job.assignment_path,
+                paths: job.paths,
+            })
+            .collect();
+
+
+        let request = PythonProcessRequest {
+            server_url: auth.server_url,
+            token: auth.token,
+            space,
+            project,
+            collection,
+            jobs: python_jobs,
+        };
+
+
         let payload =
             serde_json::to_string(&request)
-                .map_err(|error| error.to_string())?;
+                .map_err(|error| {
+                    error.to_string()
+                })?;
+
 
         let output =
             run_python_command(
@@ -367,13 +412,19 @@ fn process_sources(
                 &payload,
             )?;
 
-        serde_json::from_slice::<ProcessResult>(
-            &output,
-        )
-        .map_err(|error| {
-            format!(
-                "Invalid response from Python backend: {error}"
-            )
+
+        let python_result =
+            parse_last_json_line::<PythonProcessResult>(
+                &output,
+            )?;
+
+
+        Ok(ProcessResult {
+            success: python_result.success,
+            processed_files:
+                python_result.processed_files,
+            jobs: python_result.jobs,
+            error: python_result.error,
         })
     })();
 
@@ -382,7 +433,9 @@ fn process_sources(
         let mut processing = state
             .processing
             .lock()
-            .map_err(|_| "Failed to access processing state.")?;
+            .map_err(|_| {
+                "Failed to access processing state."
+            })?;
 
         *processing = false;
     }
