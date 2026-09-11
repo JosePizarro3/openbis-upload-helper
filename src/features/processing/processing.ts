@@ -17,6 +17,7 @@ import type {
 
 export interface ProcessResult {
   success: boolean;
+  cancelled: boolean;
   processedFiles: number;
   jobs: number;
   error?: string;
@@ -83,6 +84,7 @@ export async function listenToProcessingEvents(
   );
 }
 
+
 export async function saveProcessingLogs(
   path: string,
   content: string,
@@ -93,5 +95,12 @@ export async function saveProcessingLogs(
       path,
       content,
     },
+  );
+}
+
+
+export async function cancelProcessing(): Promise<void> {
+  await invoke(
+    "cancel_processing",
   );
 }

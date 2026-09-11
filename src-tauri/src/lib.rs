@@ -16,7 +16,10 @@ use std::io::{
 };
 use tauri::Emitter;
 use std::process::{Command, Stdio};
-use std::sync::Mutex;
+use std::sync::{
+    Arc,
+    Mutex,
+};
 
 #[derive(Debug, Serialize)]
 struct PythonLoginRequest {
@@ -48,9 +51,15 @@ struct AuthState {
     token: String,
 }
 
+struct ProcessingState {
+    running: bool,
+    cancel_requested: bool,
+    child: Option<std::process::Child>,
+}
+
 struct AppState {
     auth: Mutex<Option<AuthState>>,
-    processing: Mutex<bool>,
+    processing: Arc<Mutex<ProcessingState>>,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -147,6 +156,7 @@ struct PythonProcessResult {
 #[serde(rename_all = "camelCase")]
 struct ProcessResult {
     success: bool,
+    cancelled: bool,
     processed_files: usize,
     jobs: usize,
     error: Option<String>,
@@ -222,18 +232,52 @@ fn run_python_command(command: &str, payload: &str) -> Result<Vec<u8>, String> {
     Ok(output.stdout)
 }
 
+
+fn create_processing_backend_command() -> Command {
+    let repository_root =
+        std::path::Path::new(
+            env!("CARGO_MANIFEST_DIR"),
+        )
+        .parent()
+        .expect(
+            "src-tauri should have a parent directory",
+        );
+
+
+    #[cfg(target_os = "windows")]
+    let executable =
+        repository_root
+            .join(".venv")
+            .join("Scripts")
+            .join("openbis-upload-helper.exe");
+
+
+    #[cfg(not(target_os = "windows"))]
+    let executable =
+        repository_root
+            .join(".venv")
+            .join("bin")
+            .join("openbis-upload-helper");
+
+
+    let mut command =
+        Command::new(executable);
+
+    command.arg("process");
+
+    command
+}
+
+
 fn run_processing_command(
     app: &tauri::AppHandle,
+    processing_state: &Arc<Mutex<ProcessingState>>,
     payload: &str,
 ) -> Result<ProcessResult, String> {
-    let mut child = Command::new("uv")
-        // Development only.
-        // Replace with the bundled Python sidecar later.
-        .args([
-            "run",
-            "openbis-upload-helper",
-            "process",
-        ])
+    let mut child =
+        create_processing_backend_command();
+
+    let mut child = child
         .env("PYTHONUNBUFFERED", "1")
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
@@ -246,12 +290,17 @@ fn run_processing_command(
         })?;
 
 
-    if let Some(mut stdin) = child.stdin.take() {
+    if let Some(mut stdin) =
+        child.stdin.take()
+    {
         stdin
-            .write_all(payload.as_bytes())
+            .write_all(
+                payload.as_bytes(),
+            )
             .map_err(|error| {
                 format!(
-                    "Failed to send processing request to Python backend: {error}"
+                    "Failed to send processing request \
+                     to Python backend: {error}"
                 )
             })?;
     }
@@ -273,67 +322,127 @@ fn run_processing_command(
 
 
     /*
-     * stderr is consumed on a separate thread so the
-     * child process cannot block if the stderr pipe fills.
+     * Store the actual Python process in AppState.
+     * cancel_processing() can now terminate it.
+     */
+    {
+        let mut processing = processing_state
+            .lock()
+            .map_err(|_| {
+                "Failed to access processing state."
+            })?;
+
+        processing.child = Some(child);
+
+
+        /*
+         * Cancellation may have been requested during
+         * the short interval between starting the
+         * operation and storing the child.
+         */
+        if processing.cancel_requested {
+            if let Some(child) =
+                processing.child.as_mut()
+            {
+                let _ = child.kill();
+            }
+        }
+    }
+
+
+    /*
+     * Consume stderr concurrently so its pipe
+     * cannot block the Python process.
      */
     let stderr_app = app.clone();
 
-    let stderr_thread = std::thread::spawn(
-        move || -> String {
-            let reader = BufReader::new(stderr);
-            let mut collected = String::new();
+    let stderr_thread =
+        std::thread::spawn(
+            move || -> String {
+                let reader =
+                    BufReader::new(stderr);
 
-            for line in reader.lines() {
-                let line = match line {
-                    Ok(line) => line,
-
-                    Err(error) => {
-                        collected.push_str(
-                            &format!(
-                                "Could not read stderr: {error}\n"
-                            ),
-                        );
-
-                        break;
-                    }
-                };
-
-                collected.push_str(&line);
-                collected.push('\n');
-
-                let event = ProcessingEvent {
-                    kind: "log".to_string(),
-                    level: "error".to_string(),
-                    message: line,
-                    timestamp: None,
-                    stage: None,
-                    files: None,
-                    jobs: None,
-                };
-
-                let _ = stderr_app.emit(
-                    "processing-event",
-                    event,
-                );
-            }
-
-            collected
-        },
-    );
+                let mut collected =
+                    String::new();
 
 
-    let reader = BufReader::new(stdout);
+                for line in reader.lines() {
+                    let line =
+                        match line {
+                            Ok(line) => line,
+
+                            Err(error) => {
+                                collected.push_str(
+                                    &format!(
+                                        "Could not read stderr: {error}\n"
+                                    ),
+                                );
+
+                                break;
+                            }
+                        };
+
+
+                    collected.push_str(
+                        &line,
+                    );
+
+                    collected.push('\n');
+
+
+                    let event =
+                        ProcessingEvent {
+                            kind:
+                                "log".to_string(),
+
+                            level:
+                                "error".to_string(),
+
+                            message:
+                                line,
+
+                            timestamp:
+                                None,
+
+                            stage:
+                                None,
+
+                            files:
+                                None,
+
+                            jobs:
+                                None,
+                        };
+
+
+                    let _ = stderr_app.emit(
+                        "processing-event",
+                        event,
+                    );
+                }
+
+
+                collected
+            },
+        );
+
+
+    let reader =
+        BufReader::new(stdout);
 
     let mut final_result:
-        Option<PythonProcessResult> = None;
+        Option<PythonProcessResult> =
+        None;
 
 
     for line in reader.lines() {
-        let line = line.map_err(|error| {
-            format!(
-                "Could not read Python processing output: {error}"
-            )
-        })?;
+        let line =
+            line.map_err(|error| {
+                format!(
+                    "Could not read Python processing output: {error}"
+                )
+            })?;
+
 
         if line.trim().is_empty() {
             continue;
@@ -341,28 +450,45 @@ fn run_processing_command(
 
 
         let python_event =
-            match serde_json::from_str::<PythonProcessingEvent>(
-                &line,
-            ) {
+            match serde_json::from_str::<
+                PythonProcessingEvent,
+            >(&line)
+            {
                 Ok(event) => event,
 
                 Err(error) => {
-                    let event = ProcessingEvent {
-                        kind: "log".to_string(),
-                        level: "error".to_string(),
-                        message: format!(
-                            "Invalid processing event ({error}): {line}"
-                        ),
-                        timestamp: None,
-                        stage: None,
-                        files: None,
-                        jobs: None,
-                    };
+                    let event =
+                        ProcessingEvent {
+                            kind:
+                                "log".to_string(),
+
+                            level:
+                                "error".to_string(),
+
+                            message:
+                                format!(
+                                    "Invalid processing event ({error}): {line}"
+                                ),
+
+                            timestamp:
+                                None,
+
+                            stage:
+                                None,
+
+                            files:
+                                None,
+
+                            jobs:
+                                None,
+                        };
+
 
                     let _ = app.emit(
                         "processing-event",
                         event,
                     );
+
 
                     continue;
                 }
@@ -372,35 +498,48 @@ fn run_processing_command(
         if python_event.kind.as_deref()
             == Some("result")
         {
-            final_result = python_event.result;
+            final_result =
+                python_event.result;
+
             continue;
         }
 
 
-        let event = ProcessingEvent {
-            kind: python_event
-                .kind
-                .unwrap_or_else(
-                    || "log".to_string(),
-                ),
+        let event =
+            ProcessingEvent {
+                kind:
+                    python_event
+                        .kind
+                        .unwrap_or_else(
+                            || "log".to_string(),
+                        ),
 
-            level: python_event
-                .level
-                .unwrap_or_else(
-                    || "info".to_string(),
-                ),
+                level:
+                    python_event
+                        .level
+                        .unwrap_or_else(
+                            || "info".to_string(),
+                        ),
 
-            message: python_event
-                .event
-                .unwrap_or_else(
-                    || line.clone(),
-                ),
+                message:
+                    python_event
+                        .event
+                        .unwrap_or_else(
+                            || line.clone(),
+                        ),
 
-            timestamp: python_event.timestamp,
-            stage: python_event.stage,
-            files: python_event.files,
-            jobs: python_event.jobs,
-        };
+                timestamp:
+                    python_event.timestamp,
+
+                stage:
+                    python_event.stage,
+
+                files:
+                    python_event.files,
+
+                jobs:
+                    python_event.jobs,
+            };
 
 
         app.emit(
@@ -415,31 +554,84 @@ fn run_processing_command(
     }
 
 
-    let status = child
-        .wait()
-        .map_err(|error| {
-            format!(
-                "Python processing backend failed: {error}"
-            )
-        })?;
+    /*
+     * stdout closes when Python exits, including
+     * when it was killed by cancel_processing().
+     */
+    let mut child = {
+        let mut processing = processing_state
+            .lock()
+            .map_err(|_| {
+                "Failed to access processing state."
+            })?;
+
+        processing
+            .child
+            .take()
+            .ok_or(
+                "Processing child process was unexpectedly missing.",
+            )?
+    };
 
 
-    let stderr_output = stderr_thread
-        .join()
-        .unwrap_or_else(|_| {
-            "Failed to read Python stderr."
-                .to_string()
-        });
+    let status =
+        child.wait().map_err(
+            |error| {
+                format!(
+                    "Python processing backend failed: {error}"
+                )
+            },
+        )?;
+
+
+    let stderr_output =
+        stderr_thread
+            .join()
+            .unwrap_or_else(
+                |_| {
+                    "Failed to read Python stderr."
+                        .to_string()
+                },
+            );
+
+
+    let cancelled = {
+        let processing = processing_state
+            .lock()
+            .map_err(|_| {
+                "Failed to access processing state."
+            })?;
+
+        processing.cancel_requested
+    };
+
+
+    /*
+     * Cancellation is a separate outcome from failure.
+     */
+    if cancelled {
+        return Ok(
+            ProcessResult {
+                success: false,
+                cancelled: true,
+                processed_files: 0,
+                jobs: 0,
+                error: None,
+            },
+        );
+    }
 
 
     if !status.success() {
         if stderr_output.trim().is_empty() {
             return Err(
                 format!(
-                    "Python processing backend exited with status {status}."
+                    "Python processing backend exited \
+                     with status {status}."
                 ),
             );
         }
+
 
         return Err(
             format!(
@@ -450,18 +642,31 @@ fn run_processing_command(
     }
 
 
-    let python_result = final_result.ok_or(
-        "Python processing backend finished without returning a final result.",
-    )?;
+    let python_result =
+        final_result.ok_or(
+            "Python processing backend finished \
+             without returning a final result.",
+        )?;
 
 
-    Ok(ProcessResult {
-        success: python_result.success,
-        processed_files:
-            python_result.processed_files,
-        jobs: python_result.jobs,
-        error: python_result.error,
-    })
+    Ok(
+        ProcessResult {
+            success:
+                python_result.success,
+
+            cancelled:
+                false,
+
+            processed_files:
+                python_result.processed_files,
+
+            jobs:
+                python_result.jobs,
+
+            error:
+                python_result.error,
+        },
+    )
 }
 
 
@@ -615,9 +820,90 @@ fn save_processing_logs(
 }
 
 #[tauri::command]
-fn process_sources(
+fn cancel_processing(
     app: tauri::AppHandle,
     state: tauri::State<AppState>,
+) -> Result<(), String> {
+    {
+        let mut processing = state
+            .processing
+            .lock()
+            .map_err(|_| {
+                "Failed to access processing state."
+            })?;
+
+
+        if !processing.running {
+            return Err(
+                "No processing operation is running."
+                    .to_string(),
+            );
+        }
+
+
+        processing.cancel_requested = true;
+
+
+        if let Some(child) =
+            processing.child.as_mut()
+        {
+            child
+                .kill()
+                .map_err(|error| {
+                    format!(
+                        "Failed to cancel processing: {error}"
+                    )
+                })?;
+        }
+    }
+
+
+    let event =
+        ProcessingEvent {
+            kind:
+                "stage".to_string(),
+
+            level:
+                "warning".to_string(),
+
+            message:
+                "Processing cancelled by user."
+                    .to_string(),
+
+            timestamp:
+                None,
+
+            stage:
+                Some(
+                    "cancelled".to_string(),
+                ),
+
+            files:
+                None,
+
+            jobs:
+                None,
+        };
+
+
+    app.emit(
+        "processing-event",
+        event,
+    )
+    .map_err(|error| {
+        format!(
+            "Could not emit cancellation event: {error}"
+        )
+    })?;
+
+
+    Ok(())
+}
+
+#[tauri::command]
+async fn process_sources(
+    app: tauri::AppHandle,
+    state: tauri::State<'_, AppState>,
     space: String,
     project: String,
     collection: String,
@@ -631,107 +917,137 @@ fn process_sources(
                 "Failed to access processing state."
             })?;
 
-        if *processing {
+
+        if processing.running {
             return Err(
                 "A processing operation is already running."
                     .to_string(),
             );
         }
 
-        *processing = true;
+
+        processing.running = true;
+        processing.cancel_requested = false;
+        processing.child = None;
     }
 
 
-    /*
-     * Everything capable of failing after acquiring
-     * the processing flag goes inside this closure.
-     *
-     * This ensures the flag gets reset afterward.
-     */
-    let result = (|| {
-        let auth = {
-            let stored_auth = state
-                .auth
-                .lock()
-                .map_err(|_| {
-                    "Failed to access authentication state."
-                })?;
+    let auth = {
+        let stored_auth = state
+            .auth
+            .lock()
+            .map_err(|_| {
+                "Failed to access authentication state."
+            })?;
 
-            stored_auth
-                .clone()
-                .ok_or(
-                    "Not authenticated.",
-                )?
+
+        stored_auth
+            .clone()
+            .ok_or(
+                "Not authenticated.",
+            )?
+    };
+
+
+    let python_jobs =
+        jobs
+            .into_iter()
+            .map(
+                |job| {
+                    PythonProcessingJob {
+                        parser_id:
+                            job.parser_id,
+
+                        assignment_path:
+                            job.assignment_path,
+
+                        paths:
+                            job.paths,
+                    }
+                },
+            )
+            .collect();
+
+
+    let request =
+        PythonProcessRequest {
+            server_url:
+                auth.server_url,
+
+            token:
+                auth.token,
+
+            space,
+            project,
+            collection,
+
+            jobs:
+                python_jobs,
         };
 
 
-        let python_jobs =
-            jobs
-                .into_iter()
-                .map(
-                    |job| {
-                        PythonProcessingJob {
-                            parser_id:
-                                job.parser_id,
-
-                            assignment_path:
-                                job.assignment_path,
-
-                            paths:
-                                job.paths,
-                        }
-                    },
-                )
-                .collect();
-
-
-        let request =
-            PythonProcessRequest {
-                server_url:
-                    auth.server_url,
-
-                token:
-                    auth.token,
-
-                space,
-                project,
-                collection,
-
-                jobs:
-                    python_jobs,
-            };
-
-
-        let payload =
-            serde_json::to_string(
-                &request,
-            )
-            .map_err(
-                |error| {
-                    error.to_string()
-                },
-            )?;
-
-
-        run_processing_command(
-            &app,
-            &payload,
+    let payload =
+        serde_json::to_string(
+            &request,
         )
-    })();
+        .map_err(
+            |error| {
+                error.to_string()
+            },
+        )?;
+
+
+    let processing_state =
+        state.processing.clone();
+
+    let worker_state =
+        processing_state.clone();
+
+    let worker_app =
+        app.clone();
+
+
+    let result =
+        tauri::async_runtime::spawn_blocking(
+            move || {
+                run_processing_command(
+                    &worker_app,
+                    &worker_state,
+                    &payload,
+                )
+            },
+        )
+        .await
+        .map_err(|error| {
+            format!(
+                "Processing worker failed: {error}"
+            )
+        })?;
 
 
     /*
-     * Always release the processing lock.
+     * Always clean up after the worker finished.
      */
     {
-        let mut processing = state
-            .processing
-            .lock()
-            .map_err(|_| {
-                "Failed to access processing state."
-            })?;
+        let mut processing =
+            processing_state
+                .lock()
+                .map_err(|_| {
+                    "Failed to access processing state."
+                })?;
 
-        *processing = false;
+
+        if let Some(
+            mut child,
+        ) = processing.child.take()
+        {
+            let _ = child.kill();
+            let _ = child.wait();
+        }
+
+
+        processing.running = false;
+        processing.cancel_requested = false;
     }
 
 
@@ -743,7 +1059,16 @@ pub fn run() {
     tauri::Builder::default()
         .manage(AppState {
             auth: Mutex::new(None),
-            processing: Mutex::new(false),
+
+            processing: Arc::new(
+                Mutex::new(
+                    ProcessingState {
+                        running: false,
+                        cancel_requested: false,
+                        child: None,
+                    },
+                ),
+            ),
         })
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
@@ -754,6 +1079,7 @@ pub fn run() {
             get_collections,
             get_parsers,
             process_sources,
+            cancel_processing,
             save_processing_logs,
             source::scan_sources,
         ])

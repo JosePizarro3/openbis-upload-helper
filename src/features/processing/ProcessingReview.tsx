@@ -3,6 +3,7 @@ import {
   useRef,
   useState,
 } from "react";
+
 import {
   save as showSaveDialog,
 } from "@tauri-apps/plugin-dialog";
@@ -17,6 +18,7 @@ import {
 } from "../parser/processingPlan";
 
 import {
+  cancelProcessing,
   listenToProcessingEvents,
   processSources,
   saveProcessingLogs,
@@ -24,8 +26,8 @@ import {
 
 import type {
   ProcessingEvent,
-  ProcessResult,
   ProcessingLogLevel,
+  ProcessResult,
 } from "./processing";
 
 
@@ -36,6 +38,13 @@ interface ProcessingReviewProps {
 
   plan: ProcessingPlan;
 }
+
+
+type LogFilterLevel =
+  | "info"
+  | "warning"
+  | "error"
+  | "debug";
 
 
 function formatTimestamp(
@@ -63,11 +72,13 @@ function formatTimestamp(
 }
 
 
-type LogFilterLevel =
-  | "info"
-  | "warning"
-  | "error"
-  | "debug";
+function normalizeLevel(
+  level: string,
+): string {
+  return level
+    .trim()
+    .toLowerCase();
+}
 
 
 function getFilterLevel(
@@ -92,15 +103,6 @@ function getFilterLevel(
   }
 
   return "info";
-}
-
-
-function normalizeLevel(
-  level: string,
-): string {
-  return level
-    .trim()
-    .toLowerCase();
 }
 
 
@@ -168,6 +170,12 @@ export function ProcessingReview({
   const [processing, setProcessing] =
     useState(false);
 
+  const [cancelling, setCancelling] =
+    useState(false);
+
+  const [cancelled, setCancelled] =
+    useState(false);
+
   const [result, setResult] =
     useState<ProcessResult | null>(
       null,
@@ -201,10 +209,6 @@ export function ProcessingReview({
     countAssignedFiles(plan);
 
 
-  /*
-   * Subscribe once to the processing events emitted
-   * by the Rust backend.
-   */
   useEffect(() => {
     let unlisten:
       (() => void) | undefined;
@@ -253,9 +257,6 @@ export function ProcessingReview({
   }, []);
 
 
-  /*
-   * Keep the newest processing message visible.
-   */
   useEffect(() => {
     logEndRef.current
       ?.scrollIntoView({
@@ -271,6 +272,8 @@ export function ProcessingReview({
     }
 
     setProcessing(true);
+    setCancelling(false);
+    setCancelled(false);
 
     setResult(null);
     setError(null);
@@ -287,6 +290,13 @@ export function ProcessingReview({
           collection,
           jobs: plan.jobs,
         });
+
+
+      if (response.cancelled) {
+        setCancelled(true);
+        setCurrentStage("cancelled");
+        return;
+      }
 
 
       if (!response.success) {
@@ -308,6 +318,32 @@ export function ProcessingReview({
       );
     } finally {
       setProcessing(false);
+      setCancelling(false);
+    }
+  }
+
+
+  async function cancel() {
+    if (
+      !processing ||
+      cancelling
+    ) {
+      return;
+    }
+
+    setCancelling(true);
+
+
+    try {
+      await cancelProcessing();
+    } catch (error) {
+      setError(
+        error instanceof Error
+          ? error.message
+          : String(error),
+      );
+
+      setCancelling(false);
     }
   }
 
@@ -319,6 +355,7 @@ export function ProcessingReview({
           event.level,
         ) === "warning",
     ).length;
+
 
   const errorLogCount =
     events.filter(
@@ -334,6 +371,7 @@ export function ProcessingReview({
         );
       },
     ).length;
+
 
   const logCounts:
     Record<LogFilterLevel, number> = {
@@ -371,6 +409,7 @@ export function ProcessingReview({
       }),
     );
   }
+
 
   return (
     <div className="processing-review">
@@ -418,19 +457,42 @@ export function ProcessingReview({
       </p>
 
 
-      <button
-        type="button"
-        className="processing-start-button"
-        disabled={
-          !ready ||
-          processing
-        }
-        onClick={process}
-      >
-        {processing
-          ? "Processing..."
-          : "Process & upload"}
-      </button>
+      <div className="processing-actions">
+        <button
+          type="button"
+          className="processing-start-button"
+          disabled={
+            !ready ||
+            processing
+          }
+          onClick={process}
+        >
+          {processing && (
+            <span
+              className="processing-spinner"
+              aria-hidden="true"
+            />
+          )}
+
+          {processing
+            ? "Processing..."
+            : "Process & upload"}
+        </button>
+
+
+        {processing && (
+          <button
+            type="button"
+            className="processing-cancel-button"
+            disabled={cancelling}
+            onClick={cancel}
+          >
+            {cancelling
+              ? "Cancelling..."
+              : "Cancel"}
+          </button>
+        )}
+      </div>
 
 
       {(processing ||
@@ -438,42 +500,53 @@ export function ProcessingReview({
         <div className="processing-monitor">
           <div className="processing-monitor-header">
             <div>
-                <strong>
+              <strong>
                 Processing logs
-                </strong>
+              </strong>
 
-                {processing && (
+              {processing && (
                 <span className="processing-running">
-                    Running
+                  Running
                 </span>
-                )}
+              )}
             </div>
 
 
             <div className="processing-monitor-actions">
-                {currentStage && (
+              {currentStage && (
                 <span className="processing-stage">
-                    {currentStage}
+                  {currentStage}
                 </span>
-                )}
+              )}
 
-                <button
+              <button
                 type="button"
                 className="processing-export-button"
                 disabled={events.length === 0}
                 onClick={() => {
-                    void exportLogs(
+                  void exportLogs(
                     events,
                     space,
                     project,
                     collection,
-                    );
+                  );
                 }}
-                >
+              >
                 Export JSON
-                </button>
+              </button>
             </div>
           </div>
+
+
+          {processing && (
+            <div
+              className="processing-progress"
+              aria-label="Processing in progress"
+            >
+              <div className="processing-progress-bar" />
+            </div>
+          )}
+
 
           <div className="processing-log-filters">
             {(
@@ -514,6 +587,7 @@ export function ProcessingReview({
             ))}
           </div>
 
+
           <div
             className="processing-log"
             role="log"
@@ -537,7 +611,9 @@ export function ProcessingReview({
 
                   return (
                     <div
-                      key={`${event.timestamp ?? "no-time"}-${index}`}
+                      key={
+                        `${event.timestamp ?? "no-time"}-${index}`
+                      }
                       className={
                         `processing-log-entry processing-log-${level}`
                       }
@@ -617,6 +693,15 @@ export function ProcessingReview({
           {result.jobs === 1
             ? ""
             : "s"}.
+        </p>
+      )}
+
+
+      {cancelled && (
+        <p className="processing-cancelled">
+          Processing was cancelled.
+          Data already written to openBIS before
+          cancellation may remain there.
         </p>
       )}
 
