@@ -1,14 +1,14 @@
 [project]
 name = "openbis-upload-helper"
-version = "0.1.0"
+version = "1.0.0"
 description = "Desktop helper for parsing and uploading scientific data to openBIS."
 readme = "README.md"
-requires-python = ">=3.12"
+requires-python = ">=3.14"
 dependencies = [
     "bam-masterdata>=0.13.0",
     "pybis>=1.37.5",
     "pydantic>=2.13.5",
-    "masterdata-parser-example @ git+https://github.com/BAMresearch/masterdata-parser-example.git@main",
+    "openbis-parser-example>=1.0.0",
 ]
 
 [dependency-groups]
