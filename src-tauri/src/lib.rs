@@ -671,8 +671,8 @@ fn run_processing_command(
 
 
 #[tauri::command]
-fn login(
-    state: tauri::State<AppState>,
+async fn login(
+    state: tauri::State<'_, AppState>,
     server_url: String,
     username: String,
     password: String,
@@ -685,32 +685,89 @@ fn login(
         personal_access_token,
     };
 
-    let payload = serde_json::to_string(&request).map_err(|error| error.to_string())?;
 
-    let output = run_python_command("login", &payload)?;
+    let payload =
+        serde_json::to_string(
+            &request,
+        )
+        .map_err(
+            |error| error.to_string(),
+        )?;
 
-    let python_result = serde_json::from_slice::<PythonLoginResult>(&output)
-        .map_err(|error| format!("Invalid response from Python backend: {error}"))?;
+
+    /*
+     * Login can take several seconds while pybis
+     * performs network requests. Run the blocking
+     * Python process away from the Tauri UI thread.
+     */
+    let output =
+        tauri::async_runtime::spawn_blocking(
+            move || {
+                run_python_command(
+                    "login",
+                    &payload,
+                )
+            },
+        )
+        .await
+        .map_err(|error| {
+            format!(
+                "Login worker failed: {error}"
+            )
+        })??;
+
+
+    let python_result =
+        serde_json::from_slice::<
+            PythonLoginResult,
+        >(&output)
+        .map_err(|error| {
+            format!(
+                "Invalid response from Python backend: {error}"
+            )
+        })?;
+
 
     if python_result.success {
-        let token = python_result
-            .token
-            .clone()
-            .ok_or("Successful login did not return an authentication token.")?;
+        let token =
+            python_result
+                .token
+                .clone()
+                .ok_or(
+                    "Successful login did not return an authentication token.",
+                )?;
 
-        let mut auth = state
-            .auth
-            .lock()
-            .map_err(|_| "Failed to access authentication state.")?;
 
-        *auth = Some(AuthState { server_url, token });
+        let mut auth =
+            state
+                .auth
+                .lock()
+                .map_err(|_| {
+                    "Failed to access authentication state."
+                })?;
+
+
+        *auth = Some(
+            AuthState {
+                server_url,
+                token,
+            },
+        );
     }
 
-    Ok(LoginResult {
-        success: python_result.success,
-        username: python_result.username,
-        error: python_result.error,
-    })
+
+    Ok(
+        LoginResult {
+            success:
+                python_result.success,
+
+            username:
+                python_result.username,
+
+            error:
+                python_result.error,
+        },
+    )
 }
 
 #[tauri::command]
