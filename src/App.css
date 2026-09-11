@@ -1176,6 +1176,93 @@ button {
 }
 
 
+.processing-log-filters {
+  display: flex;
+  flex-wrap: wrap;
+
+  gap: 0.45rem;
+
+  padding: 0.55rem 0.75rem;
+
+  border-bottom: 1px solid var(--border);
+
+  background: var(--surface);
+}
+
+
+.processing-filter-button {
+  display: inline-flex;
+  align-items: center;
+
+  gap: 0.4rem;
+
+  padding: 0.25rem 0.55rem;
+
+  border: 1px solid var(--border);
+  border-radius: 999px;
+
+  background: var(--surface);
+  color: var(--text-secondary);
+
+  font-size: 0.76rem;
+  text-transform: uppercase;
+
+  opacity: 0.55;
+
+  transition:
+    opacity 0.15s ease,
+    background-color 0.15s ease,
+    border-color 0.15s ease;
+}
+
+
+.processing-filter-button:hover {
+  opacity: 0.85;
+}
+
+
+.processing-filter-button.processing-filter-active {
+  opacity: 1;
+}
+
+
+.processing-filter-count {
+  min-width: 1.35rem;
+
+  padding: 0.05rem 0.35rem;
+
+  border-radius: 999px;
+
+  background: var(--surface-muted);
+
+  text-align: center;
+}
+
+
+.processing-filter-info.processing-filter-active {
+  border-color: var(--bam-blue-dark);
+  color: var(--bam-blue-darker);
+}
+
+
+.processing-filter-warning.processing-filter-active {
+  border-color: rgb(210, 145, 0);
+  color: rgb(145, 95, 0);
+}
+
+
+.processing-filter-error.processing-filter-active {
+  border-color: var(--error);
+  color: var(--error);
+}
+
+
+.processing-filter-debug.processing-filter-active {
+  border-color: var(--bam-black-45);
+  color: var(--bam-black-60);
+}
+
+
 .processing-log {
   max-height: 320px;
 

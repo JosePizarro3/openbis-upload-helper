@@ -25,6 +25,7 @@ import {
 import type {
   ProcessingEvent,
   ProcessResult,
+  ProcessingLogLevel,
 } from "./processing";
 
 
@@ -59,6 +60,38 @@ function formatTimestamp(
       hour12: false,
     },
   );
+}
+
+
+type LogFilterLevel =
+  | "info"
+  | "warning"
+  | "error"
+  | "debug";
+
+
+function getFilterLevel(
+  level: ProcessingLogLevel | string,
+): LogFilterLevel {
+  const normalized =
+    normalizeLevel(level);
+
+  if (normalized === "debug") {
+    return "debug";
+  }
+
+  if (normalized === "warning") {
+    return "warning";
+  }
+
+  if (
+    normalized === "error" ||
+    normalized === "critical"
+  ) {
+    return "error";
+  }
+
+  return "info";
 }
 
 
@@ -145,6 +178,14 @@ export function ProcessingReview({
 
   const [events, setEvents] =
     useState<ProcessingEvent[]>([]);
+
+  const [enabledLevels, setEnabledLevels] =
+    useState<Record<LogFilterLevel, boolean>>({
+      info: true,
+      warning: true,
+      error: true,
+      debug: false,
+    });
 
   const [currentStage, setCurrentStage] =
     useState<string | null>(null);
@@ -294,6 +335,42 @@ export function ProcessingReview({
       },
     ).length;
 
+  const logCounts:
+    Record<LogFilterLevel, number> = {
+      info: 0,
+      warning: 0,
+      error: 0,
+      debug: 0,
+    };
+
+
+  for (const event of events) {
+    const level =
+      getFilterLevel(event.level);
+
+    logCounts[level] += 1;
+  }
+
+
+  const filteredEvents =
+    events.filter(
+      (event) =>
+        enabledLevels[
+          getFilterLevel(event.level)
+        ],
+    );
+
+
+  function toggleLevel(
+    level: LogFilterLevel,
+  ) {
+    setEnabledLevels(
+      (current) => ({
+        ...current,
+        [level]: !current[level],
+      }),
+    );
+  }
 
   return (
     <div className="processing-review">
@@ -398,6 +475,44 @@ export function ProcessingReview({
             </div>
           </div>
 
+          <div className="processing-log-filters">
+            {(
+              [
+                "info",
+                "warning",
+                "error",
+                "debug",
+              ] as LogFilterLevel[]
+            ).map((level) => (
+              <button
+                key={level}
+                type="button"
+                className={
+                  `processing-filter-button ` +
+                  `processing-filter-${level} ` +
+                  (
+                    enabledLevels[level]
+                      ? "processing-filter-active"
+                      : ""
+                  )
+                }
+                aria-pressed={
+                  enabledLevels[level]
+                }
+                onClick={() => {
+                  toggleLevel(level);
+                }}
+              >
+                <span>
+                  {level}
+                </span>
+
+                <span className="processing-filter-count">
+                  {logCounts[level]}
+                </span>
+              </button>
+            ))}
+          </div>
 
           <div
             className="processing-log"
@@ -408,8 +523,12 @@ export function ProcessingReview({
               <div className="processing-log-empty">
                 Waiting for processing output...
               </div>
+            ) : filteredEvents.length === 0 ? (
+              <div className="processing-log-empty">
+                No logs match the selected filters.
+              </div>
             ) : (
-              events.map(
+              filteredEvents.map(
                 (event, index) => {
                   const level =
                     normalizeLevel(
@@ -418,7 +537,7 @@ export function ProcessingReview({
 
                   return (
                     <div
-                      key={index}
+                      key={`${event.timestamp ?? "no-time"}-${index}`}
                       className={
                         `processing-log-entry processing-log-${level}`
                       }

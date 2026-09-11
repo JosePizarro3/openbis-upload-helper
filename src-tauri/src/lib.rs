@@ -464,33 +464,6 @@ fn run_processing_command(
     })
 }
 
-fn parse_last_json_line<T>(
-    output: &[u8],
-) -> Result<T, String>
-where
-    T: for<'de> Deserialize<'de>,
-{
-    let stdout =
-        String::from_utf8_lossy(output);
-
-    let json_line = stdout
-        .lines()
-        .rev()
-        .find(|line| !line.trim().is_empty())
-        .ok_or(
-            "Python backend returned no output.",
-        )?;
-
-    serde_json::from_str::<T>(
-        json_line,
-    )
-    .map_err(|error| {
-        format!(
-            "Invalid response from Python backend: {error}. \
-             Last output line: {json_line}"
-        )
-    })
-}
 
 #[tauri::command]
 fn login(
